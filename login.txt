@@ -1,0 +1,458 @@
+</* --- Background avec image de vanille (met ton image dans assets) --- */
+  <div class="login-page">
+    <div class="overlay"></div>
+    <div class="login-container">
+      <div class="logo">
+        <img src="@/assets/MME_Logo.png" alt="MadaMarket Export" />
+      </div>
+      <h1 class="title">Welcome</h1>
+      <p class="subtitle">Log into your account</p>
+
+      <form class="login-form">
+        <input type="text" placeholder="Nom d'utilisateur" class="input" />
+        <input type="password" placeholder="Mot de passe" class="input" />
+        <button type="submit" class="btn">Log in</button>
+      </form>
+    </div>
+  </div>
+</template>
+
+<script>
+export default {
+  name: "LoginPage"
+}
+</script>
+
+
+<style scoped>
+/* --- Background avec image de vanille (met ton image dans assets) --- */
+.login-page {
+  height: 100vh;
+  background: url("@/assets/exp3.jpg") no-repeat center center / cover;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  position: relative;
+}
+
+.overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.45); /* assombrir légèrement */
+}
+
+/* --- Container du login --- */
+.login-container {
+  position: relative;
+  z-index: 2;
+  background: rgba(255, 255, 255, 0.9);
+  padding: 40px 35px;
+  border-radius: 16px;
+  width: 350px;
+  text-align: center;
+  box-shadow: 0 8px 20px rgba(0,0,0,0.2);
+  backdrop-filter: blur(8px); /* effet verre givré */
+}
+
+.logo {
+  display: flex;
+  justify-content: center; /* centre horizontalement */
+  align-items: center;     /* centre verticalement si besoin */
+  margin-bottom: 15px;
+}
+
+.logo img {
+  height: 70px;
+  margin-bottom: 15px;
+}
+
+.title {
+  font-size: 24px;
+  color: #009688;
+  margin-bottom: 5px;
+}
+
+.subtitle {
+  font-size: 14px;
+  color: #555;
+  margin-bottom: 20px;
+}
+
+/* --- Formulaire --- */
+.login-form {
+  display: flex;
+  flex-direction: column;
+}
+
+.input {
+  margin-bottom: 15px;
+  padding: 12px;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  outline: none;
+  transition: border 0.3s, box-shadow 0.3s;
+}
+
+.input:focus {
+  border-color: #009688;
+  box-shadow: 0 0 5px rgba(0, 150, 136, 0.3);
+}
+
+.btn {
+  padding: 12px;
+  border: none;
+  border-radius: 8px;
+  background: linear-gradient(135deg, #009688, #f5b301); /* turquoise → jaune épice */
+  color: white;
+  font-weight: bold;
+  cursor: pointer;
+  transition: transform 0.2s, background 0.3s;
+}
+
+.btn:hover {
+  transform: translateY(-2px);
+  background: linear-gradient(135deg, #00796b, #e6a800);
+}
+</style>
+
+//NewExpedition avant MainLayout 
+<template>
+  <div>
+    <h1>Nouvelle expédition</h1>
+    <p><b>Client choisi :</b> {{ clientName }} (ID : {{ clientId }})</p>
+    <!-- formulaire d’expédition -->
+  </div>
+</template>
+
+<script>
+export default {
+  name: "NewExpedition",
+  props: ["clientId", "clientName"],
+  // computed: {
+  //   // fallback si jamais router ne passe pas correctement
+  //   clientName() {
+  //     return this.$route.params.clientName || "Inconnu";
+  //   },
+  //   clientId() {
+  //     return this.$route.params.clientId;
+  //   }
+  // }
+};
+</script>
+<!--Avant utilisation MainLayout-->
+
+<!-- <template>
+  <div class="wrapper">
+  
+    <header class="main-header">
+ 
+      <a href="#" class="logo">
+        <span class="logo-mini"><b>A</b>LT</span>
+        <span class="logo-lg"><b>Admin</b>LTE</span>
+      </a>
+
+   
+      <nav class="navbar navbar-static-top">
+
+        <a href="#" class="sidebar-toggle" data-toggle="offcanvas" role="button">
+          <span class="sr-only">Toggle navigation</span>
+        </a>
+
+
+        <div class="navbar-custom-menu">
+          <ul class="nav navbar-nav">
+
+            <li class="dropdown user user-menu">
+              <a href="#" class="dropdown-toggle" data-toggle="dropdown">
+                <img src="/dist/img/user2-160x160.jpg" class="user-image" alt="User Image">
+                <span class="hidden-xs">{{ user?.userName }}</span>
+              </a>
+              <ul class="dropdown-menu">
+
+                <li class="user-header">
+                  <img src="/dist/img/user2-160x160.jpg" class="img-circle" alt="User Image">
+                  <p>
+                    {{ user?.userName }} - {{ user?.roleName }}
+                  </p>
+                </li>
+
+                <li class="user-footer">
+                  <div class="pull-left">
+                    <a href="#" class="btn btn-default btn-flat">Profile</a>
+                  </div>
+                  <div class="pull-right">
+                    <a href="#" class="btn btn-default btn-flat">Sign out</a>
+                  </div>
+                </li>
+              </ul>
+            </li>
+          </ul>
+        </div>
+      </nav>
+    </header>
+
+  
+    <aside class="main-sidebar">
+      <section class="sidebar">
+       
+        <div class="user-panel">
+          <div class="pull-left image">
+            <img src="/dist/img/user2-160x160.jpg" class="img-circle" alt="User Image">
+          </div>
+          <div class="pull-left info">
+            <p>{{ user?.userName }}</p>
+            <a href="#"><i class="fa fa-circle text-success"></i> Online</a>
+          </div>
+        </div>
+
+       
+        <ul class="sidebar-menu">
+          <li class="header">MAIN NAVIGATION</li>
+
+          <li class="active">
+            <a href="#">
+              <i class="fa fa-dashboard"></i> <span>Dashboard</span>
+            </a>
+          </li>
+
+          <li class="treeview">
+            <a href="#">
+              <i class="fa fa-plus"></i> <span>Expédition</span>
+              <span class="pull-right-container">
+                <i class="fa fa-angle-left pull-right"></i>
+              </span>
+            </a>
+            <ul class="treeview-menu">
+           
+              <li>
+              <button class="btn btn-link" @click="showClientPopup = true">
+                <i class="fa fa-circle-o"></i> Nouvelle expédition
+              </button>
+
+                              </li>
+              <li><a href="#"><i class="fa fa-circle-o"></i> Liste des expéditions</a></li>
+              <li><a href="#"><i class="fa fa-circle-o"></i> Statistiques</a></li>
+            </ul>
+          </li>
+
+          <li>
+            <a href="#">
+              <i class="fa fa-id-card-o"></i> <span>Collecteurs</span>
+            </a>
+          </li>
+          <li>
+            <a href="#">
+              <i class="fa fa-cogs"></i> <span>Collecte</span>
+            </a>
+          </li>
+          <li>
+            <a href="#">
+              <i class="fa fa-users"></i> <span>Users</span>
+            </a>
+          </li>
+        </ul>
+      </section>
+    </aside>
+
+    
+    <div class="content-wrapper">
+      <section class="content-header">
+        <h1>
+          Bienvenue {{ user?.userName }}
+          <small>Ton rôle : {{ user?.roleName }}</small>
+        </h1>
+      </section>
+
+      <section class="content">
+        
+  <button @click="showClientPopup = true" class="btn btn-primary">
+    Test popup
+  </button>
+        <p>Contenu du tableau de bord...</p>
+      </section>
+    </div>
+
+    <ChooseClient 
+      :show="showClientPopup" 
+      @close="showClientPopup = false"
+      @validated="goToNewExpedition"
+      @new-client="showNewClientPopup = true"
+    />
+
+    <NewClientModal 
+      :show="showNewClientPopup"
+      @close="showNewClientPopup = false"
+      @created="onClientCreated"
+    />
+
+  </div>
+</template>
+
+<script>
+import ChooseClient from "../components/ChooseClient.vue";
+import NewClientModal from "../components/NewClientModal.vue";
+
+export default {
+  components: { ChooseClient, NewClientModal },
+  data() {
+    return {
+      user: null,             
+      showClientPopup: false,
+      showNewClientPopup: false
+    };
+  },
+  mounted() {
+   
+    const savedUser = localStorage.getItem("user");
+    if (savedUser) {
+      this.user = JSON.parse(savedUser);
+    }
+  },
+  methods: {
+    goToNewExpedition(client) {
+      this.$router.push({ name: "NewExpedition", params: { clientId: client.idClient, clientName: client.nomClient } });
+    },
+    onClientCreated(client) {
+      console.log("Nouveau client créé :", client);
+    }
+  }
+};
+
+</script> -->
+
+//////client specificite prompt :
+pour le popup nouveau client : 
+<template>
+  <div v-if="show" class="modal-overlay">
+    <div class="custom-modal">
+      <h3>Nouveau client</h3>
+
+      <input 
+        v-model="nomClient"
+        placeholder="Nom du client"
+        class="input"
+      />
+
+
+      <h4>Choisir pays</h4>
+      <div class="pays-list">
+        <label v-for="p in pays" :key="p.idPays">
+          <input type="checkbox" :value="p.idPays" v-model="selectedPays" />
+          {{ p.nomPays }}
+        </label>
+      </div>
+
+      <!--  nouveau pays -->
+      <div class="new-pays">
+        <input v-model="nouveauPays" placeholder="Nouveau pays" class="input" />
+        <button @click="ajouterPays">Ajouter pays</button>
+      </div>
+
+      <div class="modal-actions">
+        <button class="btn" @click="$emit('close')">Annuler</button>
+        <button class="btn btn-validate" @click="valider">Créer client</button>
+      </div>
+    </div>
+  </div>
+</template>
+
+<script>
+import axios from "axios";
+
+export default {
+  name: "NewClientModal",
+  props: ["show"],
+  data() {
+    return {
+      nomClient: "",
+      pays: [],
+      selectedPays: [],
+      nouveauPays: ""
+    };
+  },
+  async mounted() {
+    await this.chargerPays();
+  },
+  methods: {
+    async chargerPays() {
+      try {
+        const res = await axios.get("http://localhost:5156/api/pays");
+        this.pays = res.data;
+      } catch (err) {
+        console.error("Erreur chargement pays :", err);
+      }
+    },
+    async ajouterPays() {
+      if (!this.nouveauPays) return;
+      try {
+        const res = await axios.post("http://localhost:5156/api/pays", {
+          nomPays: this.nouveauPays
+        });
+        this.pays.push(res.data);
+        this.nouveauPays = "";
+      } catch (err) {
+        console.error("Erreur ajout pays :", err);
+      }
+    },
+    async valider() {
+      try {
+        const res = await axios.post("http://localhost:5156/api/client", {
+          nomClient: this.nomClient,
+          paysIds: this.selectedPays
+        });
+        alert("Client créé : " + res.data.nomClient);
+        this.$emit("created", res.data);
+        this.$emit("close");
+      } catch (err) {
+        console.error("Erreur création client :", err);
+      }
+    }
+  }
+};
+</script>
+
+<style scoped>
+.modal-overlay {
+  position: fixed;
+  top: 0; left: 0;
+  width: 100%; height: 100%;
+  background: rgba(0,0,0,0.5);
+  display: flex; justify-content: center; align-items: center;
+  z-index: 30000 !important;
+}
+.custom-modal {
+  background: white;
+  padding: 20px;
+  border-radius: 8px;
+  width: 450px;
+  z-index: 30000 !important;
+}
+.input {
+  width: 100%;
+  margin-bottom: 10px;
+  padding: 8px;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+}
+.pays-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.new-pays {
+  margin: 10px 0;
+  display: flex;
+  gap: 10px;
+}
+.modal-actions {
+  margin-top: 15px;
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+</style>
+
+comment ajouter un champ specificite ex : vanille 8cm, sachet de 50g, ... 

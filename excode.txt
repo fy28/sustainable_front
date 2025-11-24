@@ -1,0 +1,1305 @@
+// NewExpedition taloha 
+{/* <template>
+  <div>
+    <h1>Nouvelle expédition</h1>
+    <p>
+      <b>Client choisi :</b> {{ $route.params.clientName }}
+      (ID : {{ $route.params.clientId }})
+    </p>
+
+    <button @click="showAddForm = !showAddForm">
+      ➕ Ajouter produit
+    </button>
+
+   
+    <div v-if="showAddForm" class="add-form">
+      <label>Produit :</label>
+      <select v-model="selectedProduct">
+        <option disabled value="">-- Choisir un produit --</option>
+        <option v-for="p in products" :key="p" :value="p">{{ p }}</option>
+      </select>
+
+      <label>Pays :</label>
+      <div>
+        <label v-for="c in clientCountries" :key="c">
+          <input
+            type="checkbox"
+            :value="c"
+            v-model="selectedCountries"
+          />
+          {{ c }}
+        </label>
+      </div>
+
+      <button @click="addExport"> Ajouter ce produit</button>
+    </div>
+
+    <hr />
+
+  
+    <div v-for="(exp, index) in expedition" :key="index" class="product-docs">
+      <h3>{{ exp.product }} → {{ exp.country }}</h3>
+      <table border="1">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Document nécessaire</th>
+            <th>Statut</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="(doc, i) in exp.documents" :key="i">
+            <td>{{ i + 1 }}</td>
+            <td>{{ doc }}</td>
+            <td>
+              <input type="checkbox" v-model="exp.provided[i]" />
+              {{ exp.provided[i] ? "Fourni" : "Non fourni" }}
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <hr />
+    <button @click="validateExpedition"> Valider l’expédition</button>
+  </div>
+</template>
+
+<script>
+const DOCUMENTS_RULES = {
+  vanille: {
+    france: ["Phytosanitaire", "Certification Bio", "Facture commerciale"],
+    amerique: ["Phytosanitaire", "Numéro lock", "Licence d’exportation"],
+  },
+  girofle: {
+    france: ["Facture commerciale", "Déclaration en douane", "Licence d’exportation"],
+    amerique: ["Facture commerciale", "Analyse qualité", "Licence d’exportation"],
+  },
+};
+
+export default {
+  name: "NewExpedition",
+  data() {
+    return {
+      products: Object.keys(DOCUMENTS_RULES),
+      clientCountries: ["france", "amerique"], //mivadika zay pays anle client 
+      selectedProduct: "",
+      selectedCountries: [],
+      expedition: [],
+      showAddForm: false,
+    };
+  },
+  methods: {
+    addExport() {
+      if (!this.selectedProduct || this.selectedCountries.length === 0) return;
+
+      this.selectedCountries.forEach((country) => {
+        const docs = DOCUMENTS_RULES[this.selectedProduct][country] || [];
+        this.expedition.push({
+          product: this.selectedProduct,
+          country: country,
+          documents: docs,
+          provided: Array(docs.length).fill(false),
+        });
+      });
+
+      // reset
+      this.selectedProduct = "";
+      this.selectedCountries = [];
+      this.showAddForm = false;
+    },
+  validateExpedition() {
+  // Sauvegarde dans localStorage
+  localStorage.setItem("expedition", JSON.stringify(this.expedition));
+
+  // Redirection
+  this.$router.push({ name: "ExpeditionList" });
+},
+  },
+};
+</script> */}
+
+// List taloha 
+
+<!-- <template>
+  <div class="list-container">
+    <h1> Liste des documents définitifs</h1>
+
+    <div v-if="globalList.length > 0">
+      <table class="doc-table">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Document</th>
+            <th>Produit</th>
+            <th>Pays</th>
+            <th>Statut</th>
+            <th>Action</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="(item, index) in globalList" :key="index">
+            <td>{{ index + 1 }}</td>
+            <td>{{ item.doc }}</td>
+            <td class="capitalize">{{ item.product }}</td>
+            <td class="capitalize">{{ item.country }}</td>
+            <td>
+              <span
+                :class="item.provided ? 'badge provided' : 'badge missing'"
+              >
+                {{ item.provided ? "Fourni" : "Manquant" }}
+              </span>
+            </td>
+            <td>
+              <button class="btn danger" @click="deleteDocument(index)">
+                🗑️ Supprimer
+              </button>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div v-else class="empty">
+      <p>Aucune donnée reçue depuis Nouvelle expédition 🚫</p>
+    </div>
+
+    <div class="actions">
+      <button class="btn success" @click="confirmExpedition"> Valider</button>
+      <button class="btn info" @click="sendEmail"> Envoyer au client</button>
+      <button class="btn pdf" @click="exportPDF"> Exporter en PDF</button>
+    </div>
+  </div>
+</template>
+
+<script>
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
+
+export default {
+  name: "ExpeditionList",
+  data() {
+    return {
+      expedition: [],
+      globalList: []
+    };
+  },
+  created() {
+    const saved = localStorage.getItem("expedition");
+    this.expedition = saved ? JSON.parse(saved) : [];
+
+    this.globalList = this.expedition.flatMap(exp =>
+      exp.documents.map((doc, i) => ({
+        product: exp.product,
+        country: exp.country,
+        doc: doc,
+        provided: exp.provided[i]
+      }))
+    );
+  },
+  methods: {
+    confirmExpedition() {
+      alert("Expédition validée ");
+    },
+    sendEmail() {
+      alert("Email envoyé au client ");
+    },
+    deleteDocument(index) {
+      if (confirm("Supprimer ce document ?")) {
+        this.globalList.splice(index, 1);
+
+        // Mettre à jour localStorage
+        localStorage.setItem("expedition", JSON.stringify(this.expedition));
+      }
+    },
+    exportPDF() {
+      const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+
+      pdf.setFontSize(16);
+      pdf.text("Liste des documents définitifs", 14, 20);
+
+      const tableData = this.globalList.map((item, index) => [
+        index + 1,
+        item.doc,
+        item.product,
+        item.country
+      ]);
+
+      autoTable(pdf, {
+        startY: 30,
+        head: [["#", "Document", "Produit", "Pays"]],
+        body: tableData,
+        theme: "grid",
+        styles: { halign: "center", valign: "middle", fontSize: 10 },
+        headStyles: { fillColor: [60, 141, 188], textColor: 255, fontStyle: "bold" },
+        alternateRowStyles: { fillColor: [245, 245, 245] }
+      });
+
+      pdf.save("expedition-documents.pdf");
+    },
+  },
+};
+</script>
+
+<style scoped>
+.list-container {
+  padding: 20px;
+  background-color: #f4f6f9;
+  border-radius: 8px;
+  max-width: 1000px;
+  margin: auto;
+}
+
+h1 {
+  text-align: center;
+  margin-bottom: 20px;
+  color: #2c3e50;
+}
+
+.doc-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 20px;
+  background: white;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+}
+
+.doc-table th,
+.doc-table td {
+  padding: 10px 12px;
+  border: 1px solid #ddd;
+  text-align: center;
+}
+
+.doc-table th {
+  background-color: #3c8dbc;
+  color: white;
+}
+
+.badge {
+  display: inline-block;
+  padding: 4px 10px;
+  border-radius: 12px;
+  font-weight: 500;
+  color: white;
+}
+
+.badge.provided {
+  background-color: #00a65a;
+}
+
+.badge.missing {
+  background-color: #dd4b39;
+}
+
+.actions {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+}
+
+.btn {
+  padding: 7px 13px;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  font-weight: 500;
+  color: white;
+  transition: 0.2s;
+}
+
+.btn.success {
+  background-color: #00a65a;
+}
+
+.btn.info {
+  background-color: #3c8dbc;
+}
+
+.btn.pdf {
+  background-color: #605ca8;
+}
+
+.btn.danger {
+  background-color: #d9534f;
+  font-size: 13px;
+}
+
+.btn:hover {
+  opacity: 0.9;
+}
+
+.capitalize {
+  text-transform: capitalize;
+}
+
+.empty {
+  text-align: center;
+  color: #888;
+  font-style: italic;
+}
+</style> -->
+
+.btn.add { background-color: #f39c12; }
+
+ChooseClient
+<template>
+  <div v-if="show" class="modal-overlay">
+    <div class="custom-modal">
+      <h3>Choisissez la société</h3>
+
+
+      <div class="search-bar">
+        <input 
+          v-model="search"
+          @keyup.enter="searchClients"
+          placeholder="Rechercher votre société"
+          class="input"
+        />
+        <button class="btn-search" @click="searchClients">Rechercher</button>
+      </div>
+
+     
+      <ul class="results">
+        <li 
+          v-for="client in clients" 
+          :key="client.idClient"
+          @click="selectClient(client)"
+          :class="{ selected: client.idClient === selectedClient?.idClient }"
+        >
+          {{ client.nomClient }}
+        </li>
+        <li v-if="clients.length === 0 && search.length >= 2" class="no-result">
+          Aucun résultat trouvé
+        </li>
+      </ul>
+
+      <div class="modal-actions">
+        <button class="btn" @click="$emit('close')">Annuler</button>
+        <button class="btn btn-new" @click="$emit('new-client')">Nouveau client</button>
+        <button class="btn btn-validate" @click="validate" :disabled="!selectedClient">Valider</button>
+      </div>
+    </div>
+  </div>
+</template>
+
+<script>
+import axios from "axios";
+
+export default {
+  name: "ChooseClient",
+  props: ["show"],
+  data() {
+    return {
+      search: "",
+      clients: [],
+      selectedClient: null
+    };
+  },
+  methods: {
+    async searchClients() {
+      if (this.search.length < 2) {
+        this.clients = [];
+        return;
+      }
+      try {
+        const res = await axios.get("http://localhost:5156/api/client/search?q=" + this.search);
+        this.clients = res.data;
+      } catch (err) {
+        console.error("Erreur recherche client :", err);
+      }
+    },
+    selectClient(client) {
+      this.selectedClient = client;
+    },
+    validate() {
+      if (this.selectedClient) {
+        this.$emit("validated", this.selectedClient);
+      }
+    }
+  }
+};
+</script>
+
+<style scoped>
+.modal-overlay {
+  position: fixed;
+  top: 0; left: 0;
+  width: 100%; height: 100%;
+  background: rgba(0,0,0,0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 20000 !important; /* au-dessus de tout */
+}
+
+/* ✅ Nouveau nom pour éviter le conflit Bootstrap */
+.custom-modal {
+  background: white;
+  padding: 20px;
+  border-radius: 8px;
+  width: 420px;
+  z-index: 20001 !important;
+  position: relative;
+  box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+}
+
+h3 {
+  margin-bottom: 15px;
+  font-size: 18px;
+}
+
+.search-bar {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+.input {
+  flex: 1;
+  padding: 8px;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+}
+.btn-search {
+  padding: 8px 12px;
+  background: #009688;
+  border: none;
+  border-radius: 6px;
+  color: white;
+  cursor: pointer;
+}
+.btn-search:hover {
+  background: #00796b;
+}
+
+.results {
+  margin: 10px 0;
+  max-height: 200px;
+  overflow-y: auto;
+  list-style: none;
+  padding: 0;
+  border: 1px solid #eee;
+  border-radius: 6px;
+}
+.results li {
+  padding: 8px;
+  cursor: pointer;
+}
+.results li:hover,
+.results li.selected {
+  background: #009688;
+  color: white;
+}
+.no-result {
+  padding: 8px;
+  color: #777;
+  text-align: center;
+  font-style: italic;
+}
+
+.modal-actions {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 15px;
+}
+.btn {
+  padding: 8px 12px;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+}
+.btn-new {
+  background: #f39c12;
+  color: white;
+}
+.btn-validate {
+  background: #009688;
+  color: white;
+}
+.btn:disabled {
+  background: #ccc;
+  cursor: not-allowed;
+}
+</style>
+
+//List without modal-actions<template>
+  <div class="list-container">
+    <h1>📦 Liste des documents définitifs</h1>
+
+    <div v-if="expedition.length > 0">
+      <!-- ✅ Informations client globales -->
+      <div class="client-summary">
+        <h3>Informations générales</h3>
+        <p>
+          <b>Client :</b> <span>{{ clientName }}</span><br />
+          <b>Quantité totale :</b> <span>{{ totalQuantity }}</span>
+          <span>{{ unit }}</span>
+        </p>
+      </div>
+
+      <!-- ✅ Résumé expédition -->
+      <div class="summary">
+        <h3>Résumé des expéditions</h3>
+        <ul>
+          <li v-for="(exp, index) in expedition" :key="index">
+            <b>{{ exp.product }}</b> → {{ exp.country }},
+            livraison prévue le
+            <span class="date">{{ formatDate(exp.deliveryDate) }}</span>
+          </li>
+        </ul>
+      </div>
+
+      <!-- ✅ Tableau principal -->
+      <table class="doc-table">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Document</th>
+            <th>Produit</th>
+            <th>Pays</th>
+            <th>Date livraison</th>
+            <th>Statut</th>
+            <th>Action</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="(item, index) in globalList" :key="index">
+            <td>{{ index + 1 }}</td>
+            <td>{{ item.doc }}</td>
+            <td class="capitalize">{{ item.product }}</td>
+            <td class="capitalize">{{ item.country }}</td>
+            <td>{{ formatDate(item.deliveryDate) }}</td>
+
+            <!-- ✅ Statut -->
+            <td>
+              <span v-if="!item.file" class="badge missing">Non fourni</span>
+              <a
+                v-else
+                :href="item.file"
+                target="_blank"
+                rel="noopener noreferrer"
+                class="badge provided"
+              >
+                Aperçu
+              </a>
+            </td>
+
+            <!-- ✅ Actions -->
+            <td>
+              <button class="btn small info" @click="triggerFileInput(index)">
+                Importer
+              </button>
+              <input
+                type="file"
+                ref="fileInputs"
+                style="display: none"
+                accept=".pdf,.jpg,.jpeg,.png"
+                @change="handleFileUpload($event, index)"
+              />
+              <button class="btn small danger" @click="deleteDocument(index)">
+                Supprimer
+              </button>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+
+      <!-- ✅ Bouton ajouter -->
+      <div class="add-doc">
+        <button class="btn add" @click="showModal = true">➕ Ajouter un document</button>
+      </div>
+    </div>
+
+    <div v-else class="empty">
+      <p>Aucune donnée reçue depuis Nouvelle expédition 🚫</p>
+    </div>
+
+    <div class="actions">
+      <button class="btn success" @click="confirmExpedition"> Enregistrer</button>
+      <button class="btn info" @click="sendEmail"> Envoyer au client</button>
+      <button class="btn pdf" @click="exportPDF"> Exporter en PDF</button>
+    </div>
+
+    <!-- ✅ Popup ajout document -->
+    <div v-if="showModal" class="modal-overlay">
+      <div class="custom-modal">
+        <h3>Ajouter un document</h3>
+
+        <label>Nom du document :</label>
+        <input v-model="newDocName" placeholder="Ex : Certificat d’origine" class="input" />
+
+        <label>Produit concerné :</label>
+        <select v-model="selectedProduct" class="input">
+          <option disabled value="">-- Choisir un produit --</option>
+          <option v-for="p in productList" :key="p" :value="p">{{ p }}</option>
+        </select>
+
+        <div class="modal-actions">
+          <button class="btn" @click="showModal = false">Annuler</button>
+          <button class="btn success" @click="confirmAddDocument">OK</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</template>
+
+<script>
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
+
+export default {
+  name: "ExpeditionList",
+  data() {
+    return {
+      expedition: [],
+      globalList: [],
+      showModal: false,
+      newDocName: "",
+      selectedProduct: "",
+      clientName: "",
+      totalQuantity: "",
+      unit: "",
+    };
+  },
+  computed: {
+    productList() {
+      return [...new Set(this.expedition.map((e) => e.product))];
+    },
+  },
+  created() {
+    const saved = localStorage.getItem("expedition");
+    this.expedition = saved ? JSON.parse(saved) : [];
+
+    // ✅ Récupération des infos globales (client, quantité, unité)
+if (this.expedition.length > 0) {
+  const first = this.expedition[0];
+  this.clientName = first.clientName || this.$route.params.clientName || "Client inconnu";
+
+  // 🔹 Regroupement par produit + unité + pays
+  const grouped = this.expedition.reduce((acc, exp) => {
+    const product = exp.product || "Produit inconnu";
+    const unit = exp.unit || "kg";
+    const country = exp.country || "pays inconnu";
+    const qty = parseFloat(exp.quantity) || 0;
+
+    const key = `${product}|${unit}|${country}`;
+    acc[key] = (acc[key] || 0) + qty;
+    return acc;
+  }, {});
+
+  // 🔹 Format lisible → "450 kg de vanille (france) + 1 tonne de vanille (amérique)"
+  const formatted = Object.entries(grouped)
+    .map(([key, qty]) => {
+      const [product, unit, country] = key.split("|");
+      return `${qty} ${unit}${qty > 1 ? "s" : ""} de ${product} (${country})`;
+    })
+    .join(" + ");
+
+  this.totalQuantity = formatted;
+  this.unit = first.unit || "";
+}
+
+
+    // ✅ Construction de la liste globale
+    this.globalList = this.expedition.flatMap((exp) =>
+      exp.documents.map((doc) => ({
+        product: exp.product,
+        country: exp.country,
+        doc: doc,
+        deliveryDate: exp.deliveryDate,
+        file: null,
+      }))
+    );
+  },
+  methods: {
+    formatDate(date) {
+      if (!date) return "—";
+      const d = new Date(date);
+      return d.toLocaleDateString("fr-FR", {
+        year: "numeric",
+        month: "short",
+        day: "numeric",
+      });
+    },
+    confirmExpedition() {
+      alert("✅ Expédition enregistrée !");
+    },
+    sendEmail() {
+      alert("📧 Email envoyé au client !");
+    },
+    triggerFileInput(index) {
+      this.$refs.fileInputs[index].click();
+    },
+    handleFileUpload(event, index) {
+      const file = event.target.files[0];
+      if (!file) return;
+      const blobUrl = URL.createObjectURL(file);
+      this.globalList[index].file = blobUrl;
+      this.globalList[index].fileName = file.name;
+    },
+    deleteDocument(index) {
+      if (confirm("Supprimer ce document ?")) this.globalList.splice(index, 1);
+    },
+    exportPDF() {
+      const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+      pdf.setFontSize(16);
+      pdf.text("Liste des documents définitifs", 14, 20);
+      pdf.setFontSize(11);
+      pdf.text(`Client : ${this.clientName}`, 14, 28);
+      pdf.text(`Quantité : ${this.totalQuantity} ${this.unit}`, 14, 34);
+
+      const tableData = this.globalList.map((item, index) => [
+        index + 1,
+        item.doc,
+        item.product,
+        item.country,
+        this.formatDate(item.deliveryDate),
+        item.file ? "Fourni" : "Non fourni",
+      ]);
+
+      autoTable(pdf, {
+        startY: 40,
+        head: [["#", "Document", "Produit", "Pays", "Livraison", "Statut"]],
+        body: tableData,
+        theme: "grid",
+        styles: { halign: "center", valign: "middle", fontSize: 9 },
+        headStyles: { fillColor: [60, 141, 188], textColor: 255, fontStyle: "bold" },
+        alternateRowStyles: { fillColor: [245, 245, 245] },
+      });
+
+      pdf.save("expedition-documents.pdf");
+    },
+    confirmAddDocument() {
+      if (!this.newDocName || !this.selectedProduct) {
+        alert("Veuillez remplir tous les champs !");
+        return;
+      }
+
+      if (
+        confirm(
+          "Souhaitez-vous ajouter ce document pour TOUTES les expéditions à venir ?\nCliquez sur Annuler pour l’ajouter seulement à celle-ci."
+        )
+      ) {
+        alert("✅ Ce document sera ajouté pour les futures expéditions (fonctionnalité à venir).");
+      } else {
+        const expToUpdate = this.expedition.find((e) => e.product === this.selectedProduct);
+        if (expToUpdate) {
+          this.globalList.push({
+            product: expToUpdate.product,
+            country: expToUpdate.country,
+            doc: this.newDocName,
+            deliveryDate: expToUpdate.deliveryDate,
+            file: null,
+          });
+        }
+      }
+
+      this.newDocName = "";
+      this.selectedProduct = "";
+      this.showModal = false;
+    },
+  },
+};
+</script>
+
+<style scoped>
+.list-container {
+  padding: 20px;
+  background-color: #f4f6f9;
+  border-radius: 8px;
+  max-width: 1050px;
+  margin: auto;
+}
+
+h1 {
+  text-align: center;
+  margin-bottom: 15px;
+  color: #2c3e50;
+}
+
+.client-summary {
+  background: #fff;
+  padding: 15px;
+  border-radius: 10px;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+  margin-bottom: 15px;
+}
+.client-summary h3 {
+  color: #00a65a;
+  margin-bottom: 8px;
+}
+.client-summary span {
+  color: #3c8dbc;
+  font-weight: 500;
+}
+
+.summary {
+  background: white;
+  padding: 15px;
+  border-radius: 10px;
+  margin-bottom: 15px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+.summary h3 {
+  color: #3c8dbc;
+}
+.summary ul {
+  list-style: none;
+  padding: 0;
+}
+
+.doc-table {
+  width: 100%;
+  border-collapse: collapse;
+  background: white;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+}
+.doc-table th,
+.doc-table td {
+  padding: 8px;
+  border: 1px solid #ddd;
+  text-align: center;
+}
+.doc-table th {
+  background-color: #3c8dbc;
+  color: white;
+}
+
+.badge {
+  display: inline-block;
+  padding: 4px 10px;
+  border-radius: 12px;
+  font-weight: 500;
+  color: white;
+  text-decoration: none;
+}
+.badge.provided { background-color: #00a65a; }
+.badge.missing { background-color: #dd4b39; }
+
+.actions {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  margin-top: 15px;
+}
+.add-doc {
+  text-align: right;
+  margin-top: 10px;
+}
+.btn {
+  padding: 7px 13px;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  font-weight: 500;
+  color: white;
+  transition: 0.2s;
+}
+.btn.small { padding: 5px 10px; font-size: 12px; }
+.btn.success { background-color: #00a65a; }
+.btn.info { background-color: #3c8dbc; }
+.btn.pdf { background-color: #605ca8; }
+.btn.danger { background-color: #d9534f; }
+.btn.add { background-color: #558ad5; }
+.btn:hover { opacity: 0.9; }
+
+.modal-overlay {
+  position: fixed;
+  top: 0; left: 0;
+  width: 100%; height: 100%;
+  background: rgba(0,0,0,0.5);
+  display: flex; justify-content: center; align-items: center;
+  z-index: 10000;
+}
+.custom-modal {
+  background: white;
+  padding: 20px;
+  border-radius: 10px;
+  width: 380px;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+}
+.input {
+  width: 100%;
+  margin: 8px 0 15px 0;
+  padding: 8px;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+}
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+</style>
+
+
+NewExpedition taloha 
+<template>
+  <div class="expedition-container">
+    <h1>Nouvelle expédition</h1>
+
+    <div class="client-info">
+      <p>
+        <b>Client :</b> {{ $route.params.clientName }}
+        <span class="client-id">(ID : {{ $route.params.clientId }})</span>
+      </p>
+    </div>
+
+    <!-- Ajouter produit -->
+    <div class="add-section">
+      <button class="btn-add" @click="showAddForm = !showAddForm">
+        ➕ Ajouter un produit
+      </button>
+
+      <div v-if="showAddForm" class="add-form">
+        <div class="form-row">
+          <label>Produit :</label>
+          <select v-model="selectedProduct" class="input">
+            <option disabled value="">-- Choisir un produit --</option>
+            <option v-for="p in products" :key="p.nom" :value="p.nom">{{ p.nom }}</option>
+          </select>
+        </div>
+
+        <!-- ✅ Afficher le prix unitaire si produit sélectionné -->
+        <p v-if="selectedProductDetails" class="price-info">
+          💵 Prix unitaire :
+          <b>{{ selectedProductDetails.prix.toLocaleString() }}</b> MGA / {{ selectedProductDetails.unite }}
+        </p>
+
+        <div class="form-row">
+          <label>Pays de destination :</label>
+          <select v-model="selectedCountry" class="input">
+            <option disabled value="">-- Choisir un pays --</option>
+            <option v-for="c in clientCountries" :key="c" :value="c">{{ c }}</option>
+          </select>
+        </div>
+
+        <div class="form-row">
+          <label>Date de livraison :</label>
+          <input type="date" v-model="deliveryDate" class="input" />
+        </div>
+
+        <div class="form-row">
+          <label>Quantité :</label>
+          <input type="number" v-model="quantity" class="input small" placeholder="0" />
+          <select v-model="unit" class="input small">
+            <option value="kg">kg</option>
+            <option value="tonne">tonne</option>
+          </select>
+        </div>
+
+        <div class="form-actions">
+          <button class="btn-validate" @click="addExport">Ajouter à la liste</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Liste des produits ajoutés -->
+    <div v-if="expedition.length > 0" class="expedition-list">
+      <h2>📋 Détails de l’expédition</h2>
+      <div v-for="(exp, index) in expedition" :key="index" class="exp-card">
+        <h3>{{ exp.product }} → {{ exp.country }}</h3>
+        <p>
+          <b>Date de livraison :</b> {{ exp.deliveryDate || "Non précisée" }} <br />
+          <b>Quantité :</b> {{ exp.quantity }} {{ exp.unit }}
+        </p>
+
+        <table>
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Document nécessaire</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="(doc, i) in exp.documents" :key="i">
+              <td>{{ i + 1 }}</td>
+              <td>{{ doc }}</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <button class="btn-remove" @click="removeProduct(index)">🗑️ Supprimer</button>
+      </div>
+    </div>
+
+    <div v-else class="empty">
+      <p>Aucun produit ajouté pour le moment</p>
+    </div>
+
+    <hr />
+    <button class="btn-final" @click="validateExpedition">
+      Valider et voir la liste finale
+    </button>
+  </div>
+</template>
+
+<script>
+const DOCUMENTS_RULES = {
+  vanille: {
+    france: ["Phytosanitaire", "Certification Bio", "Facture commerciale"],
+    amerique: ["Phytosanitaire", "Numéro lock", "Licence d’exportation"],
+  },
+  girofle: {
+    france: ["Facture commerciale", "Déclaration en douane", "Licence d’exportation"],
+    amerique: ["Facture commerciale", "Analyse qualité", "Licence d’exportation"],
+  },
+};
+
+export default {
+  name: "NewExpedition",
+  data() {
+    return {
+      products: [], // 🔄 sera rempli dynamiquement depuis localStorage
+      clientCountries: ["france", "amerique"],
+
+      selectedProduct: "",
+      selectedCountry: "", // ✅ un seul pays
+      deliveryDate: "",
+      quantity: "",
+      unit: "kg",
+
+      expedition: [],
+      showAddForm: false,
+    };
+  },
+  created() {
+    // 🔹 Charger les produits depuis localStorage
+    const savedProducts = JSON.parse(localStorage.getItem("produits") || "[]");
+
+    if (savedProducts.length === 0) {
+      this.products = Object.keys(DOCUMENTS_RULES).map((k) => ({
+        nom: k,
+        codeHS: "",
+        prix: 0,
+        unite: "kg",
+        documents: [],
+      }));
+    } else {
+      this.products = savedProducts;
+    }
+  },
+  computed: {
+    selectedProductDetails() {
+      return this.products.find((p) => p.nom === this.selectedProduct);
+    },
+  },
+  methods: {
+    addExport() {
+      if (!this.selectedProduct || !this.selectedCountry) {
+        alert("Veuillez choisir un produit et un pays de destination !");
+        return;
+      }
+
+      // 🔹 Règles automatiques selon DOCUMENTS_RULES ou produit personnalisé
+      const selectedProd = this.products.find((p) => p.nom === this.selectedProduct);
+      const docs =
+        selectedProd?.documents?.length > 0
+          ? selectedProd.documents
+          : DOCUMENTS_RULES[this.selectedProduct?.toLowerCase()]?.[this.selectedCountry] ||
+            ["Facture commerciale", "Licence d’exportation"];
+
+      this.expedition.push({
+        product: this.selectedProduct,
+        country: this.selectedCountry,
+        documents: docs,
+        deliveryDate: this.deliveryDate,
+        quantity: this.quantity,
+        unit: this.unit,
+      });
+
+      // reset
+      this.selectedProduct = "";
+      this.selectedCountry = "";
+      this.deliveryDate = "";
+      this.quantity = "";
+      this.unit = "kg";
+      this.showAddForm = false;
+    },
+    removeProduct(index) {
+      this.expedition.splice(index, 1);
+    },
+    validateExpedition() {
+      const clientName = this.$route.params.clientName;
+      const clientId = this.$route.params.clientId;
+
+      const enrichedExpedition = this.expedition.map((exp) => ({
+        ...exp,
+        clientName,
+        clientId,
+      }));
+
+      localStorage.setItem("expedition", JSON.stringify(enrichedExpedition));
+
+      this.$router.push({ name: "ExpeditionList" });
+    },
+  },
+};
+</script>
+
+<style scoped>
+.expedition-container {
+  padding: 20px;
+  background-color: #f4f6f9;
+  max-width: 900px;
+  margin: auto;
+  border-radius: 10px;
+}
+
+h1 {
+  text-align: center;
+  margin-bottom: 10px;
+  color: #2c3e50;
+}
+
+.client-info {
+  text-align: center;
+  margin-bottom: 20px;
+}
+
+.client-id {
+  color: #888;
+  font-size: 13px;
+}
+
+.add-section {
+  text-align: center;
+  margin-bottom: 20px;
+}
+
+.btn-add {
+  background-color: #3c8dbc;
+  color: white;
+  border: none;
+  padding: 10px 15px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+.btn-add:hover {
+  background-color: #337ab7;
+}
+
+.add-form {
+  margin-top: 20px;
+  background: white;
+  padding: 15px;
+  border-radius: 10px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+}
+
+.form-row {
+  margin-bottom: 12px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.input {
+  flex: 1;
+  padding: 6px;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+}
+
+.input.small {
+  width: 100px;
+}
+
+.price-info {
+  text-align: left;
+  margin-bottom: 10px;
+  color: #555;
+}
+
+.form-actions {
+  text-align: right;
+}
+
+.btn-validate {
+  background: #00a65a;
+  color: white;
+  border: none;
+  padding: 8px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+.btn-validate:hover {
+  background: #008d4c;
+}
+
+.expedition-list {
+  margin-top: 20px;
+}
+
+.exp-card {
+  background: white;
+  border-radius: 10px;
+  padding: 15px;
+  margin-bottom: 15px;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+}
+
+.exp-card h3 {
+  color: #3c8dbc;
+  margin-bottom: 5px;
+}
+
+.exp-card table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 10px;
+}
+
+.exp-card th,
+.exp-card td {
+  border: 1px solid #ddd;
+  padding: 8px;
+  text-align: left;
+}
+
+.exp-card th {
+  background-color: #3c8dbc;
+  color: white;
+}
+
+.btn-remove {
+  margin-top: 10px;
+  background: #d9534f;
+  color: white;
+  border: none;
+  padding: 6px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+.btn-remove:hover {
+  background: #c9302c;
+}
+
+.empty {
+  text-align: center;
+  color: #888;
+  margin-top: 20px;
+}
+
+.btn-final {
+  background-color: #605ca8;
+  color: white;
+  border: none;
+  padding: 10px 18px;
+  border-radius: 8px;
+  cursor: pointer;
+  display: block;
+  margin: 25px auto 0;
+}
+.btn-final:hover {
+  background-color: #4b48a2;
+}
+</style>
+
+<ul>
+  <li v-for="(n, i) in notifications" :key="i">
+    <span v-if="n.type === 'expedition'">🚢</span>
+    <span v-else>🚜</span>
+    {{ n.message }}
+  </li>
+</ul>
