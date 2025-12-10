@@ -1,13 +1,13 @@
 <template>
   <div class="product-list">
-    <h1>📦 Liste des produits</h1>
+    <h1> Liste des produits</h1>
 
     <!-- 🔍 Zone de recherche -->
     <div class="filters">
-      <input v-model="searchNom" type="text" placeholder="🔍 Nom..." class="filter-input" />
-      <input v-model="searchCode" type="text" placeholder="🔍 Code HS..." class="filter-input" />
-      <input v-model="searchUnite" type="text" placeholder="⚖️ Unité..." class="filter-input" />
-      <input v-model="searchPrix" type="number" min="0" placeholder="💰 Prix unitaire" class="filter-input" />
+      <input v-model="searchNom" type="text" placeholder=" Nom..." class="filter-input" />
+      <input v-model="searchCode" type="text" placeholder=" Code HS..." class="filter-input" />
+      <input v-model="searchUnite" type="text" placeholder=" Unité..." class="filter-input" />
+      <input v-model="searchPrix" type="number" min="0" placeholder=" Prix unitaire" class="filter-input" />
     </div>
 
     <!-- Tableau -->
@@ -20,7 +20,7 @@
             <th>Code HS</th>
             <th>Prix unitaire (MGA)</th>
             <th>Unité</th>
-            <th>🕓 Dernière modification</th>
+            <th> Dernière modification</th>
             <th>Actions</th>
           </tr>
         </thead>
@@ -33,8 +33,8 @@
             <td>{{ p.nomUnite }}</td>
             <td>{{ formatDate(p.derniereModification) }}</td>
             <td>
-              <button class="btn edit" @click="openEditModal(p)">✏️ Modifier</button>
-              <button class="btn danger" @click="deleteProduct(p.idProduit, index)">🗑️ Supprimer</button>
+              <button class="btn edit" @click="openEditModal(p)"> Modifier</button>
+              <button class="btn danger" @click="deleteProduct(p.idProduit, index)"> Supprimer</button>
             </td>
           </tr>
         </tbody>

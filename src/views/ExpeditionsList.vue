@@ -43,7 +43,7 @@
         </thead>
 
         <tbody>
-          <tr v-for="(exp, index) in filteredExpeditions" :key="index">
+          <tr v-for="(exp, index) in filteredExpeditions" :key="exp.id">
             <td>{{ index + 1 }}</td>
             <td>{{ exp.client }}</td>
 
@@ -66,16 +66,17 @@
               </ul>
             </td>
 
-            <td>{{ formatDate(exp.dateLivraison) }}</td>
+            <td>{{ formatDate(exp.dateCreation) }}</td>
 
             <td class="actions">
               <router-link
                 class="btn small info"
-                :to="{ name: 'ExpeditionDetail', params: { id: index } }"
+                :to="{ name: 'ExpeditionDetail', params: { id: exp.id } }"
               >
                 Détails
               </router-link>
-              <button class="btn small danger" @click="confirmDelete(index)">
+
+              <button class="btn small danger" @click="confirmDelete(exp.id)">
                 Supprimer
               </button>
             </td>
@@ -103,13 +104,15 @@
 </template>
 
 <script>
+import axios from "axios";
+
 export default {
   name: "ExpeditionsList",
   data() {
     return {
       expeditions: [],
       showConfirm: false,
-      deleteIndex: null,
+      deleteId: null,
 
       // 🔍 Filtres
       searchClient: "",
@@ -134,15 +137,12 @@ export default {
 
         const dateEnregMatch =
           !this.searchDateEnreg ||
-          new Date(exp.dateLivraison).toISOString().split("T")[0] ===
-            this.searchDateEnreg;
+          exp.dateCreation.split("T")[0] === this.searchDateEnreg;
 
         const dateLivMatch =
           !this.searchDateLiv ||
           exp.produitsDetails.some(
-            (p) =>
-              new Date(p.dateLivraison).toISOString().split("T")[0] ===
-              this.searchDateLiv
+            (p) => p.dateLivraison?.split("T")[0] === this.searchDateLiv
           );
 
         return clientMatch && produitMatch && dateEnregMatch && dateLivMatch;
@@ -150,55 +150,72 @@ export default {
     },
   },
   methods: {
-    loadExpeditions() {
-      const saved = localStorage.getItem("expeditions_all");
-      this.expeditions = saved ? JSON.parse(saved) : [];
+    async loadExpeditions() {
+      try {
+        const res = await axios.get("http://localhost:5156/api/expedition");
+
+        this.expeditions = res.data.map((exp) => ({
+          id: exp.idExpedition,
+          client: exp.clientName,
+          dateCreation: exp.dateCreation,
+          produitsDetails: exp.produits.map((p) => ({
+            produit: p.nomProduit,
+            quantite: p.quantite,
+            unite: p.unite,
+            dateLivraison: exp.dateLivraison,
+          })),
+        }));
+      } catch (err) {
+        console.error("Erreur lors du chargement des expéditions :", err);
+      }
     },
+
     formatDate(date) {
       if (!date) return "—";
-      const d = new Date(date);
-      return d.toLocaleDateString("fr-FR", {
+      return new Date(date).toLocaleDateString("fr-FR", {
         year: "numeric",
         month: "short",
         day: "numeric",
       });
     },
+
     uniqueDates(details) {
-      if (!details) return [];
       const dates = details.map((p) => p.dateLivraison).filter(Boolean);
       return [...new Set(dates)];
     },
+
     totalQuantite(details) {
       return details.reduce((sum, p) => sum + (parseFloat(p.quantite) || 0), 0);
     },
+
     totalPrix(details) {
       return details.reduce((sum, p) => {
-        const produits = JSON.parse(localStorage.getItem("produits") || "[]");
-        const prod = produits.find(
-          (x) => x.nom.toLowerCase() === p.produit.toLowerCase()
-        );
-        const prixU = prod ? parseFloat(prod.prix) : 0;
+        const prixU = p.prixUnitaire ?? 0;
         return sum + prixU * (parseFloat(p.quantite) || 0);
       }, 0);
     },
-    confirmDelete(index) {
-      this.deleteIndex = index;
+
+    confirmDelete(id) {
+      this.deleteId = id;
       this.showConfirm = true;
     },
-    deleteExpedition() {
-      if (this.deleteIndex !== null) {
-        this.expeditions.splice(this.deleteIndex, 1);
-        localStorage.setItem("expeditions_all", JSON.stringify(this.expeditions));
-        alert("✅ Expédition supprimée avec succès !");
+
+    async deleteExpedition() {
+      try {
+        await axios.delete(`http://localhost:5156/api/expedition/${this.deleteId}`);
+        this.expeditions = this.expeditions.filter((e) => e.id !== this.deleteId);
+        alert("Expédition supprimée avec succès !");
+      } catch (err) {
+        alert("Erreur lors de la suppression.");
       }
       this.showConfirm = false;
-      this.deleteIndex = null;
     },
   },
 };
 </script>
 
 <style scoped>
+/* style identique, inchangé */
 .expeditions-container {
   padding: 25px;
   background-color: #f4f6f9;
@@ -213,7 +230,6 @@ h1 {
   color: #2c3e50;
 }
 
-/* 🔍 Zone filtres */
 .filters {
   display: flex;
   flex-wrap: wrap;
@@ -266,8 +282,6 @@ h1 {
 ul {
   list-style-type: disc;
   padding-left: 20px;
-  margin: 0;
-  text-align: left;
 }
 
 .actions {
@@ -285,6 +299,7 @@ ul {
   color: white;
   transition: 0.2s;
 }
+
 .btn.small {
   font-size: 12px;
 }
@@ -294,6 +309,7 @@ ul {
 .btn.danger {
   background-color: #d9534f;
 }
+
 .btn:hover {
   opacity: 0.9;
 }
@@ -323,7 +339,6 @@ ul {
   padding: 20px;
   border-radius: 10px;
   width: 340px;
-  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
   text-align: center;
 }
 
@@ -331,6 +346,5 @@ ul {
   display: flex;
   justify-content: center;
   gap: 10px;
-  margin-top: 15px;
 }
 </style>

@@ -139,6 +139,22 @@
   </ul>
 </li>
 
+<!-- ✅ DOCUMENTS -->
+<li class="treeview">
+  <a href="#">
+    <i class="fa fa-file-text-o"></i> <span>Documents</span>
+    <span class="pull-right-container">
+      <i class="fa fa-angle-left pull-right"></i>
+    </span>
+  </a>
+  <ul class="treeview-menu">
+    <li><router-link to="/documents/add"><i class="fa fa-circle-o"></i> Ajouter</router-link></li>
+    <li><router-link to="/documents"><i class="fa fa-circle-o"></i> Liste</router-link></li>
+  </ul>
+</li>
+
+
+
          <!-- ✅ UTILISATEURS -->
   <li class="treeview">
     <a href="#">

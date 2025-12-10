@@ -2,18 +2,20 @@
   <div class="expedition-container">
     <h1>Nouvelle expédition</h1>
 
-    <!-- Informations générales -->
+    <!-- Infos client -->
     <div class="client-info">
       <p>
-        <b>Client :</b> {{ $route.params.clientName }}
-        <span class="client-id">(ID : {{ $route.params.clientId }})</span>
+        <b>Client :</b> {{ clientName }}
+        <span class="client-id">(ID : {{ clientId }})</span>
       </p>
 
       <div class="form-row global">
         <label>Pays de destination :</label>
-        <select v-model="selectedCountry" class="input">
+        <select v-model="selectedPays" class="input">
           <option disabled value="">-- Choisir un pays --</option>
-          <option v-for="c in clientCountries" :key="c" :value="c">{{ c }}</option>
+          <option v-for="p in paysClient" :key="p.id" :value="p.id">
+            {{ p.nom }}
+          </option>
         </select>
       </div>
 
@@ -34,41 +36,52 @@
       <div v-if="showAddForm" class="add-form">
         <div class="form-row">
           <label>Produit :</label>
-          <select v-model="selectedProduct" class="input">
+          <select v-model="selectedProductId" class="input">
             <option disabled value="">-- Choisir un produit --</option>
-            <option v-for="p in products" :key="p.nom" :value="p.nom">{{ p.nom }}</option>
+            <option v-for="p in produits" :key="p.idProduit" :value="p.idProduit">
+              {{ p.nom }}
+            </option>
           </select>
         </div>
 
-        <!-- ✅ Prix unitaire du produit -->
+        <!-- Affichage prix -->
         <p v-if="selectedProductDetails" class="price-info">
           💵 Prix unitaire :
           <b>{{ selectedProductDetails.prix.toLocaleString() }}</b> MGA /
-          {{ selectedProductDetails.unite }}
+          {{ selectedProductDetails.nomUnite }}
         </p>
 
         <div class="form-row">
           <label>Quantité :</label>
-          <input type="number" v-model="quantity" class="input small" placeholder="0" />
+          <input
+            type="number"
+            v-model="quantity"
+            class="input small"
+            placeholder="0"
+          />
           <select v-model="unit" class="input small">
-            <option value="kg">kg</option>
-            <option value="tonne">tonne</option>
+            <option>kg</option>
+            <option>tonne</option>
           </select>
         </div>
 
         <div class="form-actions">
-          <button class="btn-validate" @click="addExport">Ajouter à la liste</button>
+          <button class="btn-validate" @click="addProduct">Ajouter à la liste</button>
         </div>
       </div>
     </div>
 
-    <!-- Liste des produits ajoutés -->
-    <div v-if="expedition.length > 0" class="expedition-list">
+    <!-- Liste des produits -->
+    <div v-if="expeditionLignes.length > 0" class="expedition-list">
       <h2>📋 Produits de l’expédition</h2>
 
-      <div v-for="(exp, index) in expedition" :key="index" class="exp-card">
-        <h3>{{ exp.product }}</h3>
-        <p><b>Quantité :</b> {{ exp.quantity }} {{ exp.unit }}</p>
+      <div
+        v-for="(exp, index) in expeditionLignes"
+        :key="index"
+        class="exp-card"
+      >
+        <h3>{{ exp.nomProduit }}</h3>
+        <p><b>Quantité :</b> {{ exp.quantite }} {{ exp.unite }}</p>
 
         <table>
           <thead>
@@ -80,7 +93,7 @@
           <tbody>
             <tr v-for="(doc, i) in exp.documents" :key="i">
               <td>{{ i + 1 }}</td>
-              <td>{{ doc }}</td>
+              <td>{{ doc.nomDocument }}</td>
             </tr>
           </tbody>
         </table>
@@ -94,123 +107,123 @@
     </div>
 
     <hr />
+
     <button class="btn-final" @click="validateExpedition">
-      Valider et voir la liste finale
+      Valider l'expédition
     </button>
   </div>
 </template>
 
 <script>
-const DOCUMENTS_RULES = {
-  vanille: {
-    france: ["Phytosanitaire", "Certification Bio", "Facture commerciale"],
-    amerique: ["Phytosanitaire", "Numéro lock", "Licence d’exportation"],
-  },
-  girofle: {
-    france: ["Facture commerciale", "Déclaration en douane", "Licence d’exportation"],
-    amerique: ["Facture commerciale", "Analyse qualité", "Licence d’exportation"],
-  },
-};
+import axios from "axios";
 
 export default {
   name: "NewExpedition",
+
   data() {
     return {
-      products: [],
-      clientCountries: ["france", "amerique"],
+      clientId: this.$route.params.clientId,
+      clientName: this.$route.params.clientName,
 
-      selectedCountry: "",
+      produits: [],
+      paysClient: [],
+
+      selectedPays: "",
       deliveryDate: "",
-      selectedProduct: "",
+
+      selectedProductId: "",
       quantity: "",
       unit: "kg",
 
-      expedition: [],
+      expeditionLignes: [],
       showAddForm: false,
     };
   },
-  created() {
-    const savedProducts = JSON.parse(localStorage.getItem("produits") || "[]");
 
-    if (savedProducts.length === 0) {
-      this.products = Object.keys(DOCUMENTS_RULES).map((k) => ({
-        nom: k,
-        codeHS: "",
-        prix: 0,
-        unite: "kg",
-        documents: [],
-      }));
-    } else {
-      this.products = savedProducts;
-    }
-  },
   computed: {
     selectedProductDetails() {
-      return this.products.find((p) => p.nom === this.selectedProduct);
+      return this.produits.find((p) => p.idProduit === this.selectedProductId);
     },
   },
+
+  async created() {
+    await this.loadProduits();
+    await this.loadPaysClient();
+  },
+
   methods: {
-    addExport() {
-      if (!this.selectedCountry || !this.deliveryDate) {
-        alert("Veuillez d’abord choisir le pays et la date de livraison !");
+    async loadProduits() {
+      const res = await axios.get("http://localhost:5156/api/produit");
+      this.produits = res.data;
+    },
+
+    async loadPaysClient() {
+      const res = await axios.get(
+        `http://localhost:5156/api/client/${this.clientId}/pays`
+      );
+
+      this.paysClient = res.data.map((nom) => ({
+        id: nom.includes("France") ? "PAY_001" : 
+            nom.includes("Grece") ? "PAY_002" : "PAY_003",
+        nom,
+      }));
+    },
+
+    async addProduct() {
+      if (!this.selectedPays || !this.selectedProductId || !this.quantity) {
+        alert("Veuillez remplir toutes les informations !");
         return;
       }
 
-      if (!this.selectedProduct || !this.quantity) {
-        alert("Veuillez remplir les informations du produit !");
-        return;
-      }
+      // Charger documents dynamiques depuis backend
+      const res = await axios.get(
+        `http://localhost:5156/api/expedition/docs?produit=${this.selectedProductId}&pays=${this.selectedPays}`
+      );
 
-      // éviter les doublons produits
-      if (this.expedition.some((e) => e.product === this.selectedProduct)) {
-        alert("⚠️ Ce produit a déjà été ajouté à l’expédition !");
-        return;
-      }
+      const docs = res.data;
 
-      const selectedProd = this.products.find((p) => p.nom === this.selectedProduct);
-      const docs =
-        selectedProd?.documents?.length > 0
-          ? selectedProd.documents
-          : DOCUMENTS_RULES[this.selectedProduct?.toLowerCase()]?.[this.selectedCountry] ||
-            ["Facture commerciale", "Licence d’exportation"];
+      const produit = this.selectedProductDetails;
 
-      this.expedition.push({
-        product: this.selectedProduct,
-        country: this.selectedCountry,
+      this.expeditionLignes.push({
+        idProduit: produit.idProduit,
+        nomProduit: produit.nom,
+        quantite: this.quantity,
+        unite: this.unit,
         documents: docs,
-        deliveryDate: this.deliveryDate,
-        quantity: this.quantity,
-        unit: this.unit,
       });
 
-      // reset produit uniquement
-      this.selectedProduct = "";
+      this.selectedProductId = "";
       this.quantity = "";
       this.unit = "kg";
       this.showAddForm = false;
     },
 
     removeProduct(index) {
-      this.expedition.splice(index, 1);
+      this.expeditionLignes.splice(index, 1);
     },
 
-    validateExpedition() {
-      if (this.expedition.length === 0) {
-        alert("Ajoutez au moins un produit avant de valider !");
+    async validateExpedition() {
+      if (this.expeditionLignes.length === 0) {
+        alert("Ajoutez au moins un produit !");
         return;
       }
 
-      const clientName = this.$route.params.clientName;
-      const clientId = this.$route.params.clientId;
+      const payload = {
+        idClient: this.clientId,
+        idPaysDestination: this.selectedPays,
+        dateLivraison: this.deliveryDate,
+        lignes: this.expeditionLignes.map((e) => ({
+          idProduit: e.idProduit,
+          quantite: e.quantite,
+          unite: e.unite,
+        })),
+      };
 
-      const enrichedExpedition = this.expedition.map((exp) => ({
-        ...exp,
-        clientName,
-        clientId,
-      }));
+      const res = await axios.post("http://localhost:5156/api/expedition", payload);
 
-      localStorage.setItem("expedition", JSON.stringify(enrichedExpedition));
-      this.$router.push({ name: "ExpeditionList" });
+      alert("Expédition créée : " + res.data.idExpedition);
+
+      this.$router.push("/expeditions");
     },
   },
 };
