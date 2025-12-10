@@ -53,6 +53,11 @@ const routes = [
   component: () => import("../views/DocumentEdit.vue"),
   props: true
 },
+{
+  path: "/documents/rules",
+  name: "DocumentRules",
+  component: () => import("../views/DocumentRules.vue"),
+},
 
 {
   path: '/collecte/add',
