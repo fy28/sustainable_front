@@ -313,18 +313,52 @@ L’équipe Mada Market Export`;
   }
 },
 
-    async sendEmail() {
-      await this.fetchClientMail();
-      this.showMailPopup = true;
-    },
+  async sendEmail() {
+  await this.fetchClientMail();
 
-   
-    simulateSend() {
-      alert(` Email simulé avec succès !
-Destinataire : ${this.clientMail || "Inconnu"}
-Client : ${this.clientName}`);
-      this.showMailPopup = false;
-    },
+  if (!this.clientMail || this.clientMail.includes("Aucun") || this.clientMail.includes("Erreur")) {
+    alert("Impossible de récupérer l'adresse email du client.");
+    return;
+  }
+
+  // Préparer la liste des pièces jointes fournies
+  const attachments = this.globalList
+    .filter(i => i.file) // seulement les documents fournis
+    .map(i => ({
+      file: i.file,
+      fileName: i.fileName
+    }));
+
+  const formData = new FormData();
+  formData.append("To", this.clientMail);
+  formData.append("Subject", `Documents expédition - ${this.clientName}`);
+  formData.append("Body", this.mailPreview);
+
+  // 🔥 Télécharger les fichiers et les envoyer au backend
+  for (const att of attachments) {
+    const response = await fetch(att.file);
+    const blob = await response.blob();
+    formData.append("Attachments", blob, att.fileName);
+  }
+
+  try {
+    const res = await fetch("http://localhost:5156/api/email/send", {
+      method: "POST",
+      body: formData
+    });
+
+    if (!res.ok) throw new Error("Erreur serveur");
+
+    alert("📨 Email envoyé avec succès !");
+  } catch (err) {
+    console.error(err);
+    alert("❌ Erreur lors de l’envoi de l’email.");
+  }
+},
+
+   simulateSend() {
+  alert("Mode simulation désactivé — utilisez Envoyer au client.");
+},
 
     triggerFileInput(index) {
       this.$refs.fileInputs[index].click();
