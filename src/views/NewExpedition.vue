@@ -203,28 +203,45 @@ export default {
     },
 
     async validateExpedition() {
-      if (this.expeditionLignes.length === 0) {
-        alert("Ajoutez au moins un produit !");
-        return;
-      }
+  if (this.expeditionLignes.length === 0) {
+    alert("Ajoutez au moins un produit !");
+    return;
+  }
 
-      const payload = {
-        idClient: this.clientId,
-        idPaysDestination: this.selectedPays,
-        dateLivraison: this.deliveryDate,
-        lignes: this.expeditionLignes.map((e) => ({
-          idProduit: e.idProduit,
-          quantite: e.quantite,
-          unite: e.unite,
-        })),
-      };
+  // Construire l'objet pour la page LIST
+  const expeditionFinale = this.expeditionLignes.map(e => ({
+    clientName: this.clientName,
+    product: e.nomProduit,
+    quantity: e.quantite,
+    unit: e.unite,
+    country: this.selectedPays,
+    deliveryDate: this.deliveryDate,
+    documents: e.documents.map(d => d.nomDocument ?? d), // support des deux formats
+  }));
 
-      const res = await axios.post("http://localhost:5156/api/expedition", payload);
+  // Sauvegarde pour LIST
+  localStorage.setItem("expedition", JSON.stringify(expeditionFinale));
 
-      alert("Expédition créée : " + res.data.idExpedition);
+  // Appel API pour création réelle
+  const payload = {
+    idClient: this.clientId,
+    idPaysDestination: this.selectedPays,
+    dateLivraison: this.deliveryDate,
+    lignes: this.expeditionLignes.map(e => ({
+      idProduit: e.idProduit,
+      quantite: e.quantite,
+      unite: e.unite,
+    })),
+  };
 
-      this.$router.push("/expeditions");
-    },
+  const res = await axios.post("http://localhost:5156/api/expedition", payload);
+
+  alert("Expédition créée : " + res.data.idExpedition);
+
+  // Redirection vers la LISTE DÉFINITIVE
+  this.$router.push("/list");
+},
+
   },
 };
 </script>
@@ -393,4 +410,3 @@ h1 {
   background-color: #4b48a2;
 }
 </style>
-

@@ -36,6 +36,29 @@ const routes = [
   component: () => import('@/views/ClientsList.vue')
 },
 
+// --- MODULE DOCUMENTS ---
+  {
+    path: "/documents",
+    name: "DocumentList",
+   component: () => import('@/views/DocumentList.vue')
+  },
+  {
+    path: "/documents/add",
+    name: "DocumentAdd",
+    component: () => import('@/views/DocumentAdd.vue')
+  },
+  {
+  path: "/documents/edit/:id",
+  name: "DocumentEdit",
+  component: () => import("../views/DocumentEdit.vue"),
+  props: true
+},
+{
+  path: "/documents/rules",
+  name: "DocumentRules",
+  component: () => import("../views/DocumentRules.vue"),
+},
+
 {
   path: '/collecte/add',
   name: 'CollecteAdd',
