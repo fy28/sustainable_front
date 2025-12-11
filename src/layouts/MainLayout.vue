@@ -140,6 +140,7 @@
 </li>
 
 <!-- ✅ DOCUMENTS -->
+<!-- ✅ DOCUMENTS -->
 <li class="treeview">
   <a href="#">
     <i class="fa fa-file-text-o"></i> <span>Documents</span>
@@ -150,8 +151,10 @@
   <ul class="treeview-menu">
     <li><router-link to="/documents/add"><i class="fa fa-circle-o"></i> Ajouter</router-link></li>
     <li><router-link to="/documents"><i class="fa fa-circle-o"></i> Liste</router-link></li>
+    <li><router-link to="/documents/rules"><i class="fa fa-circle-o"></i> Règles Documents</router-link></li>
   </ul>
 </li>
+
 
 
 
