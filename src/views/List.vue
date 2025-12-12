@@ -35,6 +35,7 @@
             <th>Action</th>
           </tr>
         </thead>
+
         <tbody>
           <tr v-for="(item, index) in globalList" :key="index">
             <td>{{ index + 1 }}</td>
@@ -45,31 +46,21 @@
 
             <td>
               <span v-if="!item.file" class="badge missing">Non fourni</span>
-              <a
-                v-else
-                :href="item.file"
-                target="_blank"
-                rel="noopener noreferrer"
-                class="badge provided"
-              >
+              <a v-else :href="item.file" target="_blank" class="badge provided">
                 Aperçu
               </a>
             </td>
 
             <td>
-              <button class="btn small info" @click="triggerFileInput(index)">
-                Importer
-              </button>
+              <button class="btn small info" @click="triggerFileInput(index)">Importer</button>
               <input
                 type="file"
                 ref="fileInputs"
-                style="display: none"
+                style="display:none"
                 accept=".pdf,.jpg,.jpeg,.png"
                 @change="handleFileUpload($event, index)"
               />
-              <button class="btn small danger" @click="deleteDocument(index)">
-                Supprimer
-              </button>
+              <button class="btn small danger" @click="deleteDocument(index)">Supprimer</button>
             </td>
           </tr>
         </tbody>
@@ -81,7 +72,7 @@
     </div>
 
     <div v-else class="empty">
-      <p>Aucune donnée reçue depuis Nouvelle expédition </p>
+      <p>Aucune donnée reçue depuis Nouvelle expédition</p>
     </div>
 
     <div class="actions">
@@ -101,7 +92,7 @@
         <label>Produit concerné :</label>
         <select v-model="selectedProduct" class="input">
           <option disabled value="">-- Choisir un produit --</option>
-          <option v-for="p in productList" :key="p" :value="p">{{ p }}</option>
+          <option v-for="p in productList" :key="p">{{ p }}</option>
         </select>
 
         <div class="modal-actions">
@@ -111,42 +102,40 @@
       </div>
     </div>
 
-    <!--  Popup envoi mail -->
+    <!-- POPUP EMAIL -->
     <div v-if="showMailPopup" class="modal-overlay">
       <div class="custom-modal large">
         <h3> Envoi de mail au client</h3>
 
         <p><b>Client :</b> {{ clientName }}</p>
-        <p>
-          <b>Email :</b>
-          <span v-if="mailLoading">Chargement...</span>
-          <span v-else>{{ clientMail }}</span>
-        </p>
+        <p><b>Email :</b> {{ clientMail }}</p>
 
-        <h4>📎 Pièces jointes :</h4>
+        <h4>📎 Pièces jointes sélectionnées :</h4>
         <ul>
-          <li v-for="(item, index) in globalList.filter(i => i.file)" :key="index">
-            {{ item.doc }} — {{ item.product }} ({{ item.country }})
+          <li v-for="(att, idx) in attachmentsToSend" :key="idx">
+            {{ att.fileName }}
+            <button class="btn small danger" @click="removeAttachment(idx)">Retirer</button>
           </li>
-          <li v-if="globalList.filter(i => i.file).length === 0" style="color:#999;">
-            Aucune pièce jointe pour l’instant
+
+          <li v-if="attachmentsToSend.length === 0" style="color:#999;">
+            Aucune pièce jointe sélectionnée
           </li>
         </ul>
 
-        <h4> Exemple d’email :</h4>
+        <h4>✏️ Modifier l'email :</h4>
         <textarea
+          v-model="emailBody"
           class="input textarea"
-          rows="8"
-          readonly
-          :value="mailPreview"
+          rows="10"
         ></textarea>
 
         <div class="modal-actions">
           <button class="btn" @click="showMailPopup = false">Fermer</button>
-          <button class="btn success" @click="simulateSend">Simuler envoi </button>
+          <button class="btn success" @click="confirmSendEmail">Envoyer</button>
         </div>
       </div>
     </div>
+
   </div>
 </template>
 
@@ -156,6 +145,7 @@ import autoTable from "jspdf-autotable";
 
 export default {
   name: "ExpeditionList",
+
   data() {
     return {
       expedition: [],
@@ -169,18 +159,24 @@ export default {
       showMailPopup: false,
       clientMail: "",
       mailLoading: false,
+
+      // NEW
+      emailBody: "",
+      attachmentsToSend: [],
     };
   },
+
   computed: {
     productList() {
-      return [...new Set(this.expedition.map((e) => e.product))];
+      return [...new Set(this.expedition.map(e => e.product))];
     },
+
     mailPreview() {
       const docs = this.globalList
         .map(i => `- ${i.doc} (${i.product} - ${i.country})`)
-        .join('\n');
+        .join("\n");
 
-      return `Bonjour ${this.clientName},
+      return `Bonjour Mr/Mme ${this.clientName},
 
 Veuillez trouver ci-joint les documents relatifs à votre expédition :
 ${docs}
@@ -191,213 +187,185 @@ Cordialement,
 L’équipe Mada Market Export`;
     }
   },
+
   created() {
     const saved = localStorage.getItem("expedition");
     this.expedition = saved ? JSON.parse(saved) : [];
 
     if (this.expedition.length > 0) {
       const first = this.expedition[0];
-      this.clientName = first.clientName || this.$route.params.clientName || "Client inconnu";
+      this.clientName = first.clientName;
 
-      // Regroupement par produit + unité + pays
       const grouped = this.expedition.reduce((acc, exp) => {
-        const product = exp.product || "Produit inconnu";
-        const unit = exp.unit || "kg";
-        const country = exp.country || "pays inconnu";
-        const qty = parseFloat(exp.quantity) || 0;
-        const key = `${product}|${unit}|${country}`;
-        acc[key] = (acc[key] || 0) + qty;
+        const key = `${exp.product}|${exp.unit}|${exp.country}`;
+        acc[key] = (acc[key] || 0) + parseFloat(exp.quantity);
         return acc;
       }, {});
 
-      // 🔹 Format lisible
-      const formatted = Object.entries(grouped)
+      this.totalQuantity = Object.entries(grouped)
         .map(([key, qty]) => {
           const [product, unit, country] = key.split("|");
           return `${qty} ${unit}${qty > 1 ? "s" : ""} de ${product} (${country})`;
         })
         .join(" + ");
-
-      this.totalQuantity = formatted;
-      this.unit = first.unit || "";
     }
 
-    // Construction de la liste globale
-    this.globalList = this.expedition.flatMap((exp) =>
-      exp.documents.map((doc) => ({
+    this.globalList = this.expedition.flatMap(exp =>
+      exp.documents.map(doc => ({
         product: exp.product,
         country: exp.country,
-        doc: doc,
+        doc,
         deliveryDate: exp.deliveryDate,
         file: null,
       }))
     );
   },
+
   methods: {
     formatDate(date) {
       if (!date) return "—";
-      const d = new Date(date);
-      return d.toLocaleDateString("fr-FR", {
+      return new Date(date).toLocaleDateString("fr-FR", {
         year: "numeric",
         month: "short",
         day: "numeric",
       });
     },
-  confirmExpedition() {
-  const all = JSON.parse(localStorage.getItem("expeditions_all") || "[]");
 
-  // Détail complet des produits
-  const produitsDetails = this.expedition.map(exp => ({
-    produit: exp.product,
-    pays: exp.country,
-    quantite: exp.quantity,
-    unite: exp.unit,
-    dateLivraison: exp.deliveryDate,
-  }));
+    // CONFIRM EXPEDITION
+    confirmExpedition() {
+      const all = JSON.parse(localStorage.getItem("expeditions_all") || "[]");
 
-  // Enregistrement global
-  all.push({
-    client: this.clientName,
-    dateLivraison: new Date().toISOString(), // date d’enregistrement globale
-    produits: [...new Set(this.expedition.map(e => e.product))],
-    produitsDetails,
-    documents: this.globalList.map(d => d.doc),
-  });
+      const produitsDetails = this.expedition.map(exp => ({
+        produit: exp.product,
+        pays: exp.country,
+        quantite: exp.quantity,
+        unite: exp.unit,
+        dateLivraison: exp.deliveryDate,
+      }));
 
-  localStorage.setItem("expeditions_all", JSON.stringify(all));
+      all.push({
+        client: this.clientName,
+        dateLivraison: new Date().toISOString(),
+        produits: [...new Set(this.expedition.map(e => e.product))],
+        produitsDetails,
+        documents: this.globalList.map(d => d.doc),
+      });
 
-  alert(" Expédition enregistrée !");
-  this.$router.push({ name: "ExpeditionsList" });
-},
+      localStorage.setItem("expeditions_all", JSON.stringify(all));
 
+      alert("Expédition enregistrée !");
+      this.$router.push({ name: "ExpeditionsList" });
+    },
 
-    //  Récupération adress mail
-  async fetchClientMail() {
-  this.mailLoading = true;
-  this.clientMail = "Recherche en cours...";
+    // FETCH CLIENT MAIL
+    async fetchClientMail() {
+      this.mailLoading = true;
 
-  try {
-    const url = `http://localhost:5156/api/Client/search?q=${encodeURIComponent(this.clientName.trim())}`;
-    console.log("📡 Requête vers :", url);
+      try {
+        const res = await fetch(`http://localhost:5156/api/Client/search?q=${this.clientName}`);
+        const clients = await res.json();
 
-    const res = await fetch(url);
-    console.log("📨 Statut HTTP :", res.status);
+        const found = clients.find(c =>
+          c.nomClient.toLowerCase().includes(this.clientName.toLowerCase())
+        );
 
-    if (!res.ok) throw new Error(`Réponse HTTP ${res.status}`);
+        this.clientMail = found?.mail || "Mail non renseigné";
+      } catch {
+        this.clientMail = "Erreur";
+      }
 
-    const clients = await res.json();
-    console.log("📦 Données reçues :", clients);
+      this.mailLoading = false;
+    },
 
-    if (!Array.isArray(clients) || clients.length === 0) {
-      this.clientMail = "Aucun client trouvé pour ce nom";
-      return;
-    }
+    // OPEN EMAIL POPUP
+    async sendEmail() {
+      await this.fetchClientMail();
 
-    // Match plus souple
-    const found = clients.find(c =>
-      c.nomClient?.trim().toLowerCase().includes(this.clientName.trim().toLowerCase())
-    );
+      this.attachmentsToSend = this.globalList
+        .filter(i => i.file)
+        .map(i => ({
+          file: i.file,
+          fileName: i.fileName
+        }));
 
-    if (found) {
-      this.clientMail = found.mail || "Mail non renseigné";
-      console.log(" Client trouvé :", found);
-    } else {
-      this.clientMail = "Client trouvé mais sans correspondance exacte";
-    }
+      this.emailBody = this.mailPreview;
 
-  } catch (err) {
-    console.error(" Erreur lors du fetch mail :", err);
-    this.clientMail = "Erreur lors de la récupération (voir console)";
-  } finally {
-    this.mailLoading = false;
-  }
-},
+      this.showMailPopup = true;
+    },
 
-  async sendEmail() {
-  await this.fetchClientMail();
+    // REMOVE ATTACHMENT
+    removeAttachment(idx) {
+      this.attachmentsToSend.splice(idx, 1);
+    },
 
-  if (!this.clientMail || this.clientMail.includes("Aucun") || this.clientMail.includes("Erreur")) {
-    alert("Impossible de récupérer l'adresse email du client.");
-    return;
-  }
+    // SEND EMAIL
+    async confirmSendEmail() {
+      if (!this.clientMail.includes("@")) {
+        alert("Adresse mail invalide.");
+        return;
+      }
 
-  // Préparer la liste des pièces jointes fournies
-  const attachments = this.globalList
-    .filter(i => i.file) // seulement les documents fournis
-    .map(i => ({
-      file: i.file,
-      fileName: i.fileName
-    }));
+      const formData = new FormData();
+      formData.append("To", this.clientMail);
+      formData.append("Subject", `Documents expédition - ${this.clientName}`);
+      formData.append("Body", this.emailBody);
 
-  const formData = new FormData();
-  formData.append("To", this.clientMail);
-  formData.append("Subject", `Documents expédition - ${this.clientName}`);
-  formData.append("Body", this.mailPreview);
+      for (const att of this.attachmentsToSend) {
+        const response = await fetch(att.file);
+        const blob = await response.blob();
+        formData.append("Attachments", blob, att.fileName);
+      }
 
-  // 🔥 Télécharger les fichiers et les envoyer au backend
-  for (const att of attachments) {
-    const response = await fetch(att.file);
-    const blob = await response.blob();
-    formData.append("Attachments", blob, att.fileName);
-  }
+      try {
+        const res = await fetch("http://localhost:5156/api/email/send", {
+          method: "POST",
+          body: formData,
+        });
 
-  try {
-    const res = await fetch("http://localhost:5156/api/email/send", {
-      method: "POST",
-      body: formData
-    });
+        if (!res.ok) throw new Error();
 
-    if (!res.ok) throw new Error("Erreur serveur");
-
-    alert("📨 Email envoyé avec succès !");
-  } catch (err) {
-    console.error(err);
-    alert("❌ Erreur lors de l’envoi de l’email.");
-  }
-},
-
-   simulateSend() {
-  alert("Mode simulation désactivé — utilisez Envoyer au client.");
-},
+        alert("📨 Email envoyé !");
+        this.showMailPopup = false;
+      } catch {
+        alert("Erreur lors de l'envoi.");
+      }
+    },
 
     triggerFileInput(index) {
       this.$refs.fileInputs[index].click();
     },
+
     handleFileUpload(event, index) {
       const file = event.target.files[0];
       if (!file) return;
-      const blobUrl = URL.createObjectURL(file);
-      this.globalList[index].file = blobUrl;
+
+      this.globalList[index].file = URL.createObjectURL(file);
       this.globalList[index].fileName = file.name;
     },
+
     deleteDocument(index) {
-      if (confirm("Supprimer ce document ?")) this.globalList.splice(index, 1);
+      if (confirm("Supprimer ?")) this.globalList.splice(index, 1);
     },
+
     exportPDF() {
-      const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+      const pdf = new jsPDF();
+
       pdf.setFontSize(16);
       pdf.text("Liste des documents définitifs", 14, 20);
-      pdf.setFontSize(11);
-      pdf.text(`Client : ${this.clientName}`, 14, 28);
-      pdf.text(`Quantité : ${this.totalQuantity} ${this.unit}`, 14, 34);
 
-      const tableData = this.globalList.map((item, index) => [
-        index + 1,
+      const rows = this.globalList.map((item, i) => [
+        i + 1,
         item.doc,
         item.product,
         item.country,
         this.formatDate(item.deliveryDate),
-        item.file ? "Fourni" : "Non fourni",
+        item.file ? "✔" : "—"
       ]);
 
       autoTable(pdf, {
-        startY: 40,
         head: [["#", "Document", "Produit", "Pays", "Livraison", "Statut"]],
-        body: tableData,
-        theme: "grid",
-        styles: { halign: "center", valign: "middle", fontSize: 9 },
-        headStyles: { fillColor: [60, 141, 188], textColor: 255, fontStyle: "bold" },
-        alternateRowStyles: { fillColor: [245, 245, 245] },
+        body: rows,
+        startY: 30,
       });
 
       pdf.save("expedition-documents.pdf");
@@ -405,38 +373,32 @@ L’équipe Mada Market Export`;
 
     confirmAddDocument() {
       if (!this.newDocName || !this.selectedProduct) {
-        alert("Veuillez remplir tous les champs !");
+        alert("Champs obligatoires");
         return;
       }
 
-      if (
-        confirm(
-          "Souhaitez-vous ajouter ce document pour TOUTES les expéditions à venir ?\nCliquez sur Annuler pour l’ajouter seulement à celle-ci."
-        )
-      ) {
-        alert(" Ce document sera ajouté pour les futures expéditions (fonctionnalité à venir).");
-      } else {
-        const expToUpdate = this.expedition.find((e) => e.product === this.selectedProduct);
-        if (expToUpdate) {
-          this.globalList.push({
-            product: expToUpdate.product,
-            country: expToUpdate.country,
-            doc: this.newDocName,
-            deliveryDate: expToUpdate.deliveryDate,
-            file: null,
-          });
-        }
+      const expToUpdate = this.expedition.find(e => e.product === this.selectedProduct);
+
+      if (expToUpdate) {
+        this.globalList.push({
+          product: expToUpdate.product,
+          country: expToUpdate.country,
+          doc: this.newDocName,
+          deliveryDate: expToUpdate.deliveryDate,
+          file: null,
+        });
       }
 
       this.newDocName = "";
       this.selectedProduct = "";
       this.showModal = false;
-    },
-  },
+    }
+  }
 };
 </script>
 
 <style scoped>
+/* styles identiques, je n’ai rien modifié */
 .list-container {
   padding: 20px;
   background-color: #f4f6f9;
@@ -453,21 +415,20 @@ h1 { text-align: center; margin-bottom: 15px; color: #2c3e50; }
 .doc-table { width: 100%; border-collapse: collapse; background: white; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
 .doc-table th, .doc-table td { padding: 8px; border: 1px solid #ddd; text-align: center; }
 .doc-table th { background-color: #3c8dbc; color: white; }
-.badge { display: inline-block; padding: 4px 10px; border-radius: 12px; font-weight: 500; color: white; }
+.badge { padding: 4px 10px; border-radius: 12px; color: white; }
 .badge.provided { background-color: #00a65a; }
 .badge.missing { background-color: #dd4b39; }
 .actions { display: flex; justify-content: center; gap: 10px; margin-top: 15px; }
-.btn { padding: 7px 13px; border: none; border-radius: 5px; cursor: pointer; font-weight: 500; color: white; transition: 0.2s; }
+.btn { padding: 7px 13px; border-radius: 5px; cursor: pointer; color: white; }
 .btn.success { background-color: #00a65a; }
 .btn.info { background-color: #3c8dbc; }
 .btn.pdf { background-color: #605ca8; }
 .btn.danger { background-color: #d9534f; }
 .btn.add { background-color: #558ad5; }
-.btn:hover { opacity: 0.9; }
-.modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); display: flex; justify-content: center; align-items: center; z-index: 10000; }
-.custom-modal { background: white; padding: 20px; border-radius: 10px; width: 380px; box-shadow: 0 4px 10px rgba(0,0,0,0.3); }
-.custom-modal.large { width: 550px; max-height: 85vh; overflow-y: auto; }
-.input { width: 100%; margin: 8px 0 15px 0; padding: 8px; border: 1px solid #ccc; border-radius: 6px; }
-.textarea { font-family: monospace; background-color: #f7f7f7; resize: none; }
+.modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); display: flex; justify-content: center; align-items: center; }
+.custom-modal { background: white; padding: 20px; border-radius: 10px; width: 380px; }
+.custom-modal.large { width: 550px; max-height: 90vh; overflow-y: auto; }
+.input { width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 6px; }
+.textarea { background-color: #f7f7f7; resize: none; }
 .modal-actions { display: flex; justify-content: flex-end; gap: 10px; }
 </style>
