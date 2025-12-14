@@ -24,9 +24,10 @@
             <th>Actions</th>
           </tr>
         </thead>
+
         <tbody>
-          <tr v-for="(p, index) in filteredProducts" :key="p.idProduit">
-            <td>{{ index + 1 }}</td>
+          <tr v-for="(p, index) in paginatedProducts" :key="p.idProduit">
+            <td>{{ (currentPage - 1) * pageSize + index + 1 }}</td>
             <td>{{ p.nom }}</td>
             <td>{{ p.codeHS }}</td>
             <td>{{ Number(p.prix).toLocaleString() }}</td>
@@ -39,6 +40,13 @@
           </tr>
         </tbody>
       </table>
+
+      <!-- Pagination -->
+      <div class="pagination">
+        <button class="btn" :disabled="currentPage === 1" @click="currentPage--">◀</button>
+        <span>Page {{ currentPage }} / {{ totalPages }}</span>
+        <button class="btn" :disabled="currentPage === totalPages" @click="currentPage++">▶</button>
+      </div>
     </div>
 
     <!-- Aucun produit -->
@@ -65,6 +73,7 @@ import EditProductModal from "../components/EditProductModal.vue";
 export default {
   name: "ProductList",
   components: { EditProductModal },
+
   data() {
     return {
       products: [],
@@ -74,14 +83,18 @@ export default {
       searchPrix: "",
       showEditModal: false,
       selectedProduct: null,
+      currentPage: 1,
+      pageSize: 10,
     };
   },
+
   async created() {
     await this.loadProducts();
   },
+
   computed: {
     filteredProducts() {
-      return this.products.filter((p) => {
+      return this.products.filter(p => {
         const matchNom = p.nom?.toLowerCase().includes(this.searchNom.toLowerCase());
         const matchCode = p.codeHS?.toLowerCase().includes(this.searchCode.toLowerCase());
         const matchUnite = p.nomUnite?.toLowerCase().includes(this.searchUnite.toLowerCase());
@@ -89,48 +102,57 @@ export default {
         return matchNom && matchCode && matchUnite && matchPrix;
       });
     },
+
+    totalPages() {
+      return Math.ceil(this.filteredProducts.length / this.pageSize) || 1;
+    },
+
+    paginatedProducts() {
+      const start = (this.currentPage - 1) * this.pageSize;
+      return this.filteredProducts.slice(start, start + this.pageSize);
+    },
   },
+
+  watch: {
+    filteredProducts() {
+      this.currentPage = 1;
+    },
+  },
+
   methods: {
     async loadProducts() {
-      try {
-        const res = await axios.get("http://localhost:5156/api/produit");
-        this.products = res.data;
-      } catch (err) {
-        console.error("Erreur chargement produits :", err);
-        alert("❌ Impossible de charger la liste des produits.");
-      }
+      const res = await axios.get("http://localhost:5156/api/produit");
+      this.products = res.data;
     },
-    async deleteProduct(id, index) {
+
+    async deleteProduct(id) {
       if (!confirm("Voulez-vous vraiment supprimer ce produit ?")) return;
-      try {
-        await axios.delete(`http://localhost:5156/api/produit/${id}`);
-        this.products.splice(index, 1);
-        alert("✅ Produit supprimé avec succès !");
-      } catch (err) {
-        console.error("Erreur suppression produit :", err);
-        alert("❌ Erreur lors de la suppression !");
-      }
+      await axios.delete(`http://localhost:5156/api/produit/${id}`);
+      this.loadProducts();
     },
+
     openEditModal(product) {
       this.selectedProduct = { ...product };
       this.showEditModal = true;
     },
+
     formatDate(dateStr) {
       if (!dateStr) return "—";
-      const date = new Date(dateStr);
-      return date.toLocaleDateString("fr-FR", {
-        day: "2-digit",
-        month: "long",
-        year: "numeric",
-        hour: "2-digit",
-        minute: "2-digit",
-      });
+      return new Date(dateStr).toLocaleString("fr-FR");
     },
   },
 };
 </script>
 
+
 <style scoped>
+  .pagination {
+  margin-top: 15px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 10px;
+}
 .product-list {
   max-width: 1000px;
   margin: 40px auto;

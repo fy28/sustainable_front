@@ -6,7 +6,7 @@
       <label>Nom du document :</label>
       <input v-model="nom" class="input" placeholder="Ex : Certificat d’origine" />
 
-      <h3>🌍 Pays associés :</h3>
+      <h3> Pays associés :</h3>
       <div class="checkbox-group">
         <div v-for="p in pays" :key="p.idPays" class="checkbox-item">
           <label>
@@ -16,7 +16,7 @@
         </div>
       </div>
 
-      <h3>🍃 Produits associés :</h3>
+      <h3> Produits associés :</h3>
       <div class="checkbox-group">
         <div v-for="prod in produits" :key="prod.idProduit" class="checkbox-item">
           <label>

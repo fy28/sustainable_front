@@ -39,8 +39,8 @@
         </thead>
 
         <tbody>
-          <tr v-for="(c, i) in filteredCollectes" :key="c.idCollecte">
-            <td>{{ i + 1 }}</td>
+          <tr v-for="(c, i) in paginatedCollectes" :key="c.idCollecte">
+            <td>{{ (currentPage - 1) * pageSize + i + 1 }}</td>
             <td>{{ c.nomCollecteur || "—" }}</td>
             <td>{{ c.nomProduit || "—" }}</td>
             <td>{{ Number(c.quantite).toLocaleString() }}</td>
@@ -62,6 +62,13 @@
           </tr>
         </tbody>
       </table>
+
+      <!-- 🔢 Pagination -->
+      <div class="pagination">
+        <button class="btn" :disabled="currentPage === 1" @click="currentPage--">◀</button>
+        <span>Page {{ currentPage }} / {{ totalPages }}</span>
+        <button class="btn" :disabled="currentPage === totalPages" @click="currentPage++">▶</button>
+      </div>
     </div>
 
     <!-- 🔹 Aucun résultat -->
@@ -77,6 +84,7 @@ import axios from "axios";
 
 export default {
   name: "CollecteList",
+
   data() {
     return {
       collectes: [],
@@ -85,11 +93,15 @@ export default {
       searchStatut: "",
       dateDebut: "",
       dateFin: "",
+      currentPage: 1,
+      pageSize: 10,
     };
   },
+
   async created() {
     await this.loadCollectes();
   },
+
   computed: {
     filteredCollectes() {
       return this.collectes.filter(c => {
@@ -108,7 +120,23 @@ export default {
         return matchCollecteur && matchProduit && matchStatut && matchDate;
       });
     },
+
+    totalPages() {
+      return Math.ceil(this.filteredCollectes.length / this.pageSize) || 1;
+    },
+
+    paginatedCollectes() {
+      const start = (this.currentPage - 1) * this.pageSize;
+      return this.filteredCollectes.slice(start, start + this.pageSize);
+    },
   },
+
+  watch: {
+    filteredCollectes() {
+      this.currentPage = 1;
+    },
+  },
+
   methods: {
     async loadCollectes() {
       try {
@@ -134,8 +162,7 @@ export default {
 
     formatDate(dateStr) {
       if (!dateStr) return "—";
-      const date = new Date(dateStr);
-      return date.toLocaleDateString("fr-FR", {
+      return new Date(dateStr).toLocaleDateString("fr-FR", {
         day: "2-digit",
         month: "short",
         year: "numeric",
@@ -144,8 +171,7 @@ export default {
 
     formatDateTime(dateStr) {
       if (!dateStr) return "—";
-      const d = new Date(dateStr);
-      return d.toLocaleString("fr-FR", {
+      return new Date(dateStr).toLocaleString("fr-FR", {
         day: "2-digit",
         month: "short",
         year: "numeric",

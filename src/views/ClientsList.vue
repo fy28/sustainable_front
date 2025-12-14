@@ -11,14 +11,14 @@
             <th>Email</th>
             <th>Pays associés</th>
             <th>Spécificité</th>
-             <th>Dernière modification</th>
+            <th>Dernière modification</th>
             <th>Actions</th>
-           
           </tr>
         </thead>
+
         <tbody>
-          <tr v-for="(c, index) in clients" :key="c.idClient || index">
-            <td>{{ index + 1 }}</td>
+          <tr v-for="(c, index) in paginatedClients" :key="c.idClient || index">
+            <td>{{ (currentPage - 1) * pageSize + index + 1 }}</td>
             <td>{{ c.nomClient }}</td>
             <td>{{ c.mail || "—" }}</td>
             <td>{{ c.paysAssocies || "—" }}</td>
@@ -37,6 +37,23 @@
           </tr>
         </tbody>
       </table>
+
+      <!-- 🔢 Pagination -->
+      <div class="pagination">
+        <button class="btn" :disabled="currentPage === 1" @click="currentPage--">
+          ◀
+        </button>
+
+        <span>Page {{ currentPage }} / {{ totalPages }}</span>
+
+        <button
+          class="btn"
+          :disabled="currentPage === totalPages"
+          @click="currentPage++"
+        >
+          ▶
+        </button>
+      </div>
     </div>
 
     <div v-else class="empty">
@@ -59,25 +76,44 @@ import EditClientModal from "../components/EditClientModal.vue";
 export default {
   name: "ClientsList",
   components: { EditClientModal },
+
   data() {
     return {
       clients: [],
       showEdit: false,
       selectedClient: null,
+      currentPage: 1,
+      pageSize: 10,
     };
   },
+
   async created() {
     this.loadClients();
   },
+
+  computed: {
+    totalPages() {
+      return Math.ceil(this.clients.length / this.pageSize) || 1;
+    },
+
+    paginatedClients() {
+      const start = (this.currentPage - 1) * this.pageSize;
+      return this.clients.slice(start, start + this.pageSize);
+    },
+  },
+
   methods: {
     async loadClients() {
       const res = await axios.get("http://localhost:5156/api/client");
       this.clients = res.data;
+      this.currentPage = 1; // reset pagination après reload
     },
+
     openEdit(client) {
       this.selectedClient = { ...client };
       this.showEdit = true;
     },
+
     async deleteClient(id) {
       if (!confirm("Voulez-vous supprimer ce client ?")) return;
       await axios.delete(`http://localhost:5156/api/client/${id}`);
@@ -117,6 +153,13 @@ th {
   border-radius: 6px;
   color: #fff;
   cursor: pointer;
+}
+.pagination {
+  margin-top: 15px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 10px;
 }
 .btn.edit { background-color: #00a65a; }
 .btn.danger { background-color: #d9534f; }

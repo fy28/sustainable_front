@@ -2,7 +2,7 @@
   <div class="collecteur-list">
     <h1>📋 Liste des collecteurs</h1>
 
-    <!-- 🔍 Zone de recherche multi-critères -->
+    <!-- 🔍 Zone de recherche -->
     <div class="filters">
       <input v-model="searchNom" type="text" placeholder="🔎 Nom du collecteur..." class="filter-input" />
       <input v-model="searchContact" type="text" placeholder="📞 Contact..." class="filter-input" />
@@ -11,7 +11,7 @@
       <input v-model="searchDate" type="text" placeholder="📅 Date (AAAA-MM ou AAAA-MM-JJ)" class="filter-input small" />
     </div>
 
-    <div v-if="filteredCollecteurs.length > 0">
+    <div v-if="paginatedCollecteurs.length > 0">
       <table class="table">
         <thead>
           <tr>
@@ -26,14 +26,19 @@
         </thead>
 
         <tbody>
-          <tr v-for="(c, index) in filteredCollecteurs" :key="c.idCollecteur">
-            <td>{{ index + 1 }}</td>
+          <tr
+            v-for="(c, index) in paginatedCollecteurs"
+            :key="c.idCollecteur"
+          >
+            <td>{{ (currentPage - 1) * pageSize + index + 1 }}</td>
             <td>{{ c.nomCollecteur }}</td>
             <td>{{ c.contact || "—" }}</td>
             <td>{{ c.zone }}</td>
             <td>
               <ul class="produits">
-                <li v-for="p in c.produits" :key="p.idProduit">{{ p.nomProduit }}</li>
+                <li v-for="p in c.produits" :key="p.idProduit">
+                  {{ p.nomProduit }}
+                </li>
               </ul>
             </td>
             <td>{{ formatDate(c.derniereModification) }}</td>
@@ -44,33 +49,66 @@
           </tr>
         </tbody>
       </table>
+
+      <!-- 🔢 PAGINATION -->
+      <div class="pagination">
+        <button
+          class="btn small"
+          :disabled="currentPage === 1"
+          @click="currentPage--"
+        >
+          ◀ Précédent
+        </button>
+
+        <span>Page {{ currentPage }} / {{ totalPages }}</span>
+
+        <button
+          class="btn small"
+          :disabled="currentPage === totalPages"
+          @click="currentPage++"
+        >
+          Suivant ▶
+        </button>
+      </div>
     </div>
 
     <div v-else class="empty">
       <p>Aucun collecteur trouvé pour ces critères.</p>
-      <router-link to="/collecteurs/add" class="btn success">➕ Ajouter un collecteur</router-link>
+      <router-link to="/collecteurs/add" class="btn success">
+        ➕ Ajouter un collecteur
+      </router-link>
     </div>
   </div>
 </template>
+
 
 <script>
 import axios from "axios";
 
 export default {
   name: "CollecteurList",
+
   data() {
     return {
       collecteurs: [],
+
+      // filtres
       searchNom: "",
       searchContact: "",
       searchProduit: "",
       searchZone: "",
       searchDate: "",
+
+      // pagination
+      currentPage: 1,
+      pageSize: 15,
     };
   },
+
   async created() {
     await this.loadCollecteurs();
   },
+
   computed: {
     filteredCollecteurs() {
       return this.collecteurs.filter(c => {
@@ -78,32 +116,39 @@ export default {
         const matchContact = c.contact?.toLowerCase().includes(this.searchContact.toLowerCase());
         const matchZone = c.zone?.toLowerCase().includes(this.searchZone.toLowerCase());
 
-        // 🔹 Vérifie les produits associés
         const produits = c.produits?.map(p => p.nomProduit.toLowerCase()).join(", ") || "";
         const matchProduit = produits.includes(this.searchProduit.toLowerCase());
 
-        // 🔹 Recherche souple sur la date (année, mois ou jour)
         const date = c.derniereModification ? new Date(c.derniereModification) : null;
         const dateStr = date
-          ? `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(
-              date.getDate()
-            ).padStart(2, "0")}`
+          ? `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`
           : "";
         const matchDate = !this.searchDate || dateStr.startsWith(this.searchDate);
 
         return matchNom && matchContact && matchZone && matchProduit && matchDate;
       });
     },
+
+    totalPages() {
+      return Math.ceil(this.filteredCollecteurs.length / this.pageSize) || 1;
+    },
+
+    paginatedCollecteurs() {
+      const start = (this.currentPage - 1) * this.pageSize;
+      return this.filteredCollecteurs.slice(start, start + this.pageSize);
+    },
   },
+
+  watch: {
+    filteredCollecteurs() {
+      this.currentPage = 1; // reset page quand filtre change
+    },
+  },
+
   methods: {
     async loadCollecteurs() {
-      try {
-        const res = await axios.get("http://localhost:5156/api/collecteur");
-        this.collecteurs = res.data;
-      } catch (err) {
-        console.error("Erreur chargement collecteurs :", err);
-        alert("❌ Impossible de charger la liste des collecteurs !");
-      }
+      const res = await axios.get("http://localhost:5156/api/collecteur");
+      this.collecteurs = res.data;
     },
 
     formatDate(date) {
@@ -119,14 +164,8 @@ export default {
 
     async deleteCollecteur(id) {
       if (!confirm("⚠️ Voulez-vous vraiment supprimer ce collecteur ?")) return;
-      try {
-        await axios.delete(`http://localhost:5156/api/collecteur/${id}`);
-        alert("🗑️ Collecteur supprimé !");
-        this.loadCollecteurs();
-      } catch (err) {
-        console.error("Erreur suppression :", err);
-        alert("❌ Erreur lors de la suppression !");
-      }
+      await axios.delete(`http://localhost:5156/api/collecteur/${id}`);
+      this.loadCollecteurs();
     },
 
     editCollecteur(c) {
@@ -136,7 +175,9 @@ export default {
 };
 </script>
 
+
 <style scoped>
+
 .collecteur-list {
   max-width: 1100px;
   margin: 40px auto;
@@ -228,5 +269,21 @@ h1 {
 .empty {
   text-align: center;
   color: #666;
+}
+.pagination {
+  margin-top: 15px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 10px;
+}
+
+.btn.small {
+  padding: 5px 10px;
+  background-color: #3c8dbc;
+}
+.btn.small:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 </style>
