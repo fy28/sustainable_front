@@ -4,18 +4,8 @@
 
     <!-- 🔍 Zone de filtres -->
     <div class="filters">
-      <input
-        v-model="searchClient"
-        type="text"
-        placeholder="🔍 Rechercher par client..."
-        class="filter-input"
-      />
-      <input
-        v-model="searchProduct"
-        type="text"
-        placeholder="🧾 Rechercher par produit..."
-        class="filter-input"
-      />
+      <input v-model="searchClient" type="text" placeholder="🔍 Rechercher par client..." class="filter-input" />
+      <input v-model="searchProduct" type="text" placeholder="🧾 Rechercher par produit..." class="filter-input" />
       <div class="filter-date">
         <label>Date d’enregistrement :</label>
         <input v-model="searchDateEnreg" type="date" class="filter-input" />
@@ -27,7 +17,7 @@
     </div>
 
     <!-- Tableau -->
-    <div v-if="filteredExpeditions.length > 0" class="table-wrapper">
+    <div v-if="paginatedExpeditions.length > 0" class="table-wrapper">
       <table class="expeditions-table">
         <thead>
           <tr>
@@ -43,19 +33,28 @@
         </thead>
 
         <tbody>
-          <tr v-for="(exp, index) in filteredExpeditions" :key="exp.id">
-            <td>{{ index + 1 }}</td>
+          <tr v-for="(exp, index) in paginatedExpeditions" :key="exp.id">
+            <td>{{ (currentPage - 1) * pageSize + index + 1 }}</td>
             <td>{{ exp.client }}</td>
 
+            <!-- Produits -->
             <td>
               <ul>
-                <li v-for="(p, i) in exp.produitsDetails" :key="i">
-                  {{ p.produit }} — {{ p.quantite }} {{ p.unite }}
+                <li v-for="(p, i) in groupByProduit(exp.produitsDetails)" :key="i">
+                  {{ p.produit }}
                 </li>
               </ul>
             </td>
 
-            <td>{{ totalQuantite(exp.produitsDetails).toLocaleString() }}</td>
+            <!-- Quantités alignées -->
+            <td>
+              <ul>
+                <li v-for="(q, i) in quantitesParProduit(exp.produitsDetails)" :key="i">
+                  {{ q.quantite }} {{ q.unite }}
+                </li>
+              </ul>
+            </td>
+
             <td>{{ totalPrix(exp.produitsDetails).toLocaleString() }}</td>
 
             <td>
@@ -69,16 +68,10 @@
             <td>{{ formatDate(exp.dateCreation) }}</td>
 
             <td class="actions">
-              <router-link
-                class="btn small info"
-                :to="{ name: 'ExpeditionDetail', params: { id: exp.id } }"
-              >
+              <router-link class="btn small info" :to="{ name: 'ExpeditionDetail', params: { id: exp.id } }">
                 Détails
               </router-link>
-
-              <button class="btn small danger" @click="confirmDelete(exp.id)">
-                Supprimer
-              </button>
+              <button class="btn small danger" @click="confirmDelete(exp.id)">Supprimer</button>
             </td>
           </tr>
         </tbody>
@@ -89,16 +82,17 @@
       <p>Aucune expédition trouvée pour ces critères.</p>
     </div>
 
-    <!-- Popup suppression -->
-    <div v-if="showConfirm" class="modal-overlay">
-      <div class="custom-modal">
-        <h3>⚠️ Confirmation</h3>
-        <p>Voulez-vous vraiment supprimer cette expédition ?</p>
-        <div class="modal-actions">
-          <button class="btn" @click="showConfirm = false">Annuler</button>
-          <button class="btn danger" @click="deleteExpedition">Supprimer</button>
-        </div>
-      </div>
+    <!-- 🔢 Pagination -->
+    <div v-if="totalPages > 1" class="pagination">
+      <button class="btn small" :disabled="currentPage === 1" @click="currentPage--">
+        ◀ Précédent
+      </button>
+
+      <span>Page {{ currentPage }} / {{ totalPages }}</span>
+
+      <button class="btn small" :disabled="currentPage === totalPages" @click="currentPage++">
+        Suivant ▶
+      </button>
     </div>
   </div>
 </template>
@@ -108,113 +102,123 @@ import axios from "axios";
 
 export default {
   name: "ExpeditionsList",
+
   data() {
     return {
       expeditions: [],
-      showConfirm: false,
-      deleteId: null,
-
-      // 🔍 Filtres
       searchClient: "",
       searchProduct: "",
       searchDateEnreg: "",
       searchDateLiv: "",
+
+      // Pagination
+      currentPage: 1,
+      pageSize: 10,
     };
   },
+
   created() {
     this.loadExpeditions();
   },
+
   computed: {
+    /* 🔍 Filtrage + TRI ASC (ancienne → récente) */
     filteredExpeditions() {
-      return this.expeditions.filter((exp) => {
-        const clientMatch = exp.client
-          .toLowerCase()
-          .includes(this.searchClient.toLowerCase());
-
-        const produitMatch = exp.produitsDetails.some((p) =>
-          p.produit.toLowerCase().includes(this.searchProduct.toLowerCase())
-        );
-
-        const dateEnregMatch =
-          !this.searchDateEnreg ||
-          exp.dateCreation.split("T")[0] === this.searchDateEnreg;
-
-        const dateLivMatch =
-          !this.searchDateLiv ||
-          exp.produitsDetails.some(
-            (p) => p.dateLivraison?.split("T")[0] === this.searchDateLiv
+      return this.expeditions
+        .filter(exp => {
+          const clientMatch = exp.client.toLowerCase().includes(this.searchClient.toLowerCase());
+          const produitMatch = exp.produitsDetails.some(p =>
+            p.produit.toLowerCase().includes(this.searchProduct.toLowerCase())
           );
 
-        return clientMatch && produitMatch && dateEnregMatch && dateLivMatch;
-      });
+          const dateEnregMatch =
+            !this.searchDateEnreg || exp.dateCreation.split("T")[0] === this.searchDateEnreg;
+
+          const dateLivMatch =
+            !this.searchDateLiv ||
+            exp.produitsDetails.some(p => p.dateLivraison?.split("T")[0] === this.searchDateLiv);
+
+          return clientMatch && produitMatch && dateEnregMatch && dateLivMatch;
+        })
+        .sort((a, b) => new Date(a.dateCreation) - new Date(b.dateCreation));
+    },
+
+    /* 📄 Pagination */
+    totalPages() {
+      return Math.ceil(this.filteredExpeditions.length / this.pageSize);
+    },
+
+    paginatedExpeditions() {
+      const start = (this.currentPage - 1) * this.pageSize;
+      return this.filteredExpeditions.slice(start, start + this.pageSize);
     },
   },
+
+  watch: {
+    /* Reset page quand filtres changent */
+    searchClient() { this.currentPage = 1; },
+    searchProduct() { this.currentPage = 1; },
+    searchDateEnreg() { this.currentPage = 1; },
+    searchDateLiv() { this.currentPage = 1; },
+  },
+
   methods: {
     async loadExpeditions() {
-      try {
-        const res = await axios.get("http://localhost:5156/api/expedition");
+      const res = await axios.get("http://localhost:5156/api/expedition");
 
-        this.expeditions = res.data.map((exp) => ({
-          id: exp.idExpedition,
-          client: exp.clientName,
-          dateCreation: exp.dateCreation,
-          produitsDetails: exp.produits.map((p) => ({
-            produit: p.nomProduit,
-            quantite: p.quantite,
-            unite: p.unite,
-            dateLivraison: exp.dateLivraison,
-          })),
-        }));
-      } catch (err) {
-        console.error("Erreur lors du chargement des expéditions :", err);
-      }
+      this.expeditions = res.data.map(exp => ({
+        id: exp.idExpedition,
+        client: exp.clientName,
+        dateCreation: exp.dateCreation,
+        produitsDetails: exp.produits.map(p => ({
+          produit: p.nomProduit,
+          quantite: p.quantite,
+          unite: p.unite,
+          dateLivraison: exp.dateLivraison,
+        })),
+      }));
     },
 
-    formatDate(date) {
-      if (!date) return "—";
-      return new Date(date).toLocaleDateString("fr-FR", {
-        year: "numeric",
-        month: "short",
-        day: "numeric",
+    groupByProduit(details) {
+      const map = {};
+      details.forEach(p => {
+        if (!map[p.produit]) map[p.produit] = { produit: p.produit };
       });
+      return Object.values(map);
+    },
+
+    quantitesParProduit(details) {
+      const map = {};
+      details.forEach(p => {
+        if (!map[p.produit]) map[p.produit] = { quantite: 0, unite: p.unite };
+        map[p.produit].quantite += parseFloat(p.quantite);
+      });
+      return Object.values(map);
     },
 
     uniqueDates(details) {
-      const dates = details.map((p) => p.dateLivraison).filter(Boolean);
-      return [...new Set(dates)];
-    },
-
-    totalQuantite(details) {
-      return details.reduce((sum, p) => sum + (parseFloat(p.quantite) || 0), 0);
+      return [...new Set(details.map(p => p.dateLivraison).filter(Boolean))];
     },
 
     totalPrix(details) {
-      return details.reduce((sum, p) => {
-        const prixU = p.prixUnitaire ?? 0;
-        return sum + prixU * (parseFloat(p.quantite) || 0);
-      }, 0);
+      return details.reduce((sum, p) => sum + (p.prixUnitaire ?? 0) * p.quantite, 0);
     },
 
-    confirmDelete(id) {
-      this.deleteId = id;
-      this.showConfirm = true;
-    },
-
-    async deleteExpedition() {
-      try {
-        await axios.delete(`http://localhost:5156/api/expedition/${this.deleteId}`);
-        this.expeditions = this.expeditions.filter((e) => e.id !== this.deleteId);
-        alert("Expédition supprimée avec succès !");
-      } catch (err) {
-        alert("Erreur lors de la suppression.");
-      }
-      this.showConfirm = false;
+    formatDate(date) {
+      return new Date(date).toLocaleDateString("fr-FR");
     },
   },
 };
 </script>
 
 <style scoped>
+  .pagination {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 12px;
+  margin-top: 15px;
+}
 /* style identique, inchangé */
 .expeditions-container {
   padding: 25px;

@@ -208,26 +208,47 @@ export default {
     return;
   }
 
-  // Construire l'objet pour la page LIST
-  const expeditionFinale = this.expeditionLignes.map(e => ({
+  // 🔥 REGROUPEMENT PAR PRODUIT
+  const grouped = {};
+
+  this.expeditionLignes.forEach(e => {
+    const key = `${e.idProduit}|${e.unite}`;
+
+    if (!grouped[key]) {
+      grouped[key] = {
+        idProduit: e.idProduit,
+        nomProduit: e.nomProduit,
+        quantite: 0,
+        unite: e.unite,
+        documents: e.documents
+      };
+    }
+
+    grouped[key].quantite += parseFloat(e.quantite);
+  });
+
+  const lignesRegroupees = Object.values(grouped);
+
+  // 🔹 Objet pour la page LIST
+  const expeditionFinale = lignesRegroupees.map(e => ({
     clientName: this.clientName,
     product: e.nomProduit,
     quantity: e.quantite,
     unit: e.unite,
     country: this.selectedPays,
     deliveryDate: this.deliveryDate,
-    documents: e.documents.map(d => d.nomDocument ?? d), // support des deux formats
+    documents: e.documents.map(d => d.nomDocument ?? d),
   }));
 
   // Sauvegarde pour LIST
   localStorage.setItem("expedition", JSON.stringify(expeditionFinale));
 
-  // Appel API pour création réelle
+  // 🔹 Payload API
   const payload = {
     idClient: this.clientId,
     idPaysDestination: this.selectedPays,
     dateLivraison: this.deliveryDate,
-    lignes: this.expeditionLignes.map(e => ({
+    lignes: lignesRegroupees.map(e => ({
       idProduit: e.idProduit,
       quantite: e.quantite,
       unite: e.unite,
@@ -237,8 +258,6 @@ export default {
   const res = await axios.post("http://localhost:5156/api/expedition", payload);
 
   alert("Expédition créée : " + res.data.idExpedition);
-
-  // Redirection vers la LISTE DÉFINITIVE
   this.$router.push("/list");
 },
 

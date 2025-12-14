@@ -1,6 +1,6 @@
 <template>
   <div class="rules-page">
-    <h1>📐 Règles documents par produit & pays</h1>
+    <h1> Règles documents par produit & pays</h1>
 
     <!-- 🔹 Formulaire d'ajout -->
     <div class="rule-form">
@@ -48,13 +48,13 @@
       </div>
 
       <div class="actions">
-        <button class="btn success" @click="addRule">💾 Enregistrer la règle</button>
+        <button class="btn success" @click="addRule"> Enregistrer la règle</button>
       </div>
     </div>
 
     <!-- 🔹 Liste des règles regroupées -->
     <div class="rules-list">
-      <h2>📋 Règles existantes</h2>
+      <h2> Règles existantes</h2>
 
       <table class="table" v-if="groupedRules.length > 0">
         <thead>
@@ -82,7 +82,7 @@
 
             <td>
               <button class="btn danger" @click="deleteGroup(g.ids)">
-                🗑️ Supprimer
+                 Supprimer
               </button>
             </td>
           </tr>

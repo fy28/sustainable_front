@@ -398,7 +398,7 @@ L’équipe Mada Market Export`;
 </script>
 
 <style scoped>
-/* styles identiques, je n’ai rien modifié */
+
 .list-container {
   padding: 20px;
   background-color: #f4f6f9;
